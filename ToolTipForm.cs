@@ -22,7 +22,9 @@ namespace PomodoroTimer
             this.MouseUp += ToolTipForm_MouseUp;
 
             // Load last location
-            if (Properties.Settings.Default.ToolTipFormLocation != null)
+            if (Properties.Settings.Default.ToolTipFormLocation != null &&
+                Properties.Settings.Default.ToolTipFormLocation.X > 0 &&
+                Properties.Settings.Default.ToolTipFormLocation.Y > 0 )
             {
                 this.Location = Properties.Settings.Default.ToolTipFormLocation;
             }

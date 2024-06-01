@@ -21,6 +21,10 @@ namespace PomodoroTimer
 
         private void ConfigurationForm_Load(object sender, EventArgs e)
         {
+            // Clear user settings (for testing)
+            //Properties.Settings.Default.Reset();
+            //Properties.Settings.Default.Save();
+
             numTaskDuration.Value = TaskDuration / 60;
             numBreakDuration.Value = BreakDuration / 60;
         }
@@ -47,9 +51,9 @@ namespace PomodoroTimer
             // 
             this.numBreakDuration.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
             this.numBreakDuration.ForeColor = System.Drawing.Color.White;
-            this.numBreakDuration.Location = new System.Drawing.Point(457, 174);
+            this.numBreakDuration.Location = new System.Drawing.Point(461, 163);
             this.numBreakDuration.Maximum = new decimal(new int[] {
-            1000,
+            480,
             0,
             0,
             0});
@@ -71,9 +75,9 @@ namespace PomodoroTimer
             // 
             this.numTaskDuration.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
             this.numTaskDuration.ForeColor = System.Drawing.Color.White;
-            this.numTaskDuration.Location = new System.Drawing.Point(457, 66);
+            this.numTaskDuration.Location = new System.Drawing.Point(461, 66);
             this.numTaskDuration.Maximum = new decimal(new int[] {
-            1000,
+            480,
             0,
             0,
             0});
@@ -94,28 +98,31 @@ namespace PomodoroTimer
             // lblTaskDuration
             // 
             this.lblTaskDuration.AutoSize = true;
+            this.lblTaskDuration.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.900001F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblTaskDuration.ForeColor = System.Drawing.Color.White;
-            this.lblTaskDuration.Location = new System.Drawing.Point(129, 72);
+            this.lblTaskDuration.Location = new System.Drawing.Point(107, 63);
             this.lblTaskDuration.Name = "lblTaskDuration";
-            this.lblTaskDuration.Size = new System.Drawing.Size(261, 32);
+            this.lblTaskDuration.Size = new System.Drawing.Size(315, 39);
             this.lblTaskDuration.TabIndex = 2;
             this.lblTaskDuration.Text = "Task Duration (min)";
             // 
             // lblBreakDuration
             // 
             this.lblBreakDuration.AutoSize = true;
+            this.lblBreakDuration.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.900001F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.lblBreakDuration.ForeColor = System.Drawing.Color.White;
-            this.lblBreakDuration.Location = new System.Drawing.Point(116, 180);
+            this.lblBreakDuration.Location = new System.Drawing.Point(92, 160);
             this.lblBreakDuration.Name = "lblBreakDuration";
-            this.lblBreakDuration.Size = new System.Drawing.Size(274, 32);
+            this.lblBreakDuration.Size = new System.Drawing.Size(330, 39);
             this.lblBreakDuration.TabIndex = 3;
             this.lblBreakDuration.Text = "Break Duration (min)";
             // 
             // btnSave
             // 
             this.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+            this.btnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.900001F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(236, 274);
+            this.btnSave.Location = new System.Drawing.Point(241, 270);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(207, 83);
             this.btnSave.TabIndex = 4;
@@ -136,6 +143,7 @@ namespace PomodoroTimer
             this.Name = "ConfigurationForm";
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.Text = "Configuration";
+            this.TopMost = true;
             this.Load += new System.EventHandler(this.ConfigurationForm_Load);
             ((System.ComponentModel.ISupportInitialize)(this.numBreakDuration)).EndInit();
             ((System.ComponentModel.ISupportInitialize)(this.numTaskDuration)).EndInit();

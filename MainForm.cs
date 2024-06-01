@@ -40,17 +40,29 @@ namespace PomodoroTimer
         bool _hideToolTipTimer = false;
         private ToolTipForm _toolTipForm = new ToolTipForm();
 
-        private bool isTask;
-
+        private bool _isTask;
         private int _totalBreaksTime;
         private Label lblText;
         private int _totalTasksTime;
-     
+        private System.Drawing.Size _originalToolTipFormSize;
+
         public MainForm()
         {
+            _originalToolTipFormSize = _toolTipForm.Size;
+
+            // If no location is set, put _originalToolTipFormSize in center of screen
+            if (Properties.Settings.Default.ToolTipFormLocation != null &&
+                Properties.Settings.Default.ToolTipFormLocation.X == 0 &&
+                Properties.Settings.Default.ToolTipFormLocation.Y == 0)
+            {
+                _toolTipForm.Location = new System.Drawing.Point(Screen.PrimaryScreen.Bounds.Width / 2 - _toolTipForm.Width / 2, Screen.PrimaryScreen.Bounds.Height / 2 - _toolTipForm.Height / 2);
+            }
+
             InitializeComponent();
             LoadSettings();
             InitializeTimer();
+
+            _notifyIcon.Text = "Left click to hide/show timer\r\nRight click to show menu";
         }
 
         #endregion
@@ -66,7 +78,7 @@ namespace PomodoroTimer
             };
             _timer.Tick += Timer_Tick;
             _remainingTime = _taskDuration;
-            isTask = true;
+            _isTask = true;
             StartTimer();
             UpdateDisplay();
         }
@@ -86,7 +98,7 @@ namespace PomodoroTimer
             _remainingTime--;
             UpdateDisplay();
 
-            if (isTask)
+            if (_isTask)
             {
                 _totalTasksTime += 1;
             }
@@ -97,7 +109,7 @@ namespace PomodoroTimer
 
             if (_remainingTime == 0)
             {
-                if (isTask)
+                if (_isTask)
                 {
                     SwitchToBreak();
                 }
@@ -112,47 +124,77 @@ namespace PomodoroTimer
 
         private void SwitchToBreak()
         {
-            isTask = false;
+            _isTask = false;
             _remainingTime = _breakDuration;
             UpdateDisplay();
             ShowNotification("BREAK time started!");
-            PlayMelody(isTask);
+            PlayMelody(_isTask);
         }
 
         private void SwitchToTask()
         {
-            isTask = true;
+            _isTask = true;
             _remainingTime = _taskDuration;
             UpdateDisplay();
             ShowNotification("TASK time started!");
-            PlayMelody(isTask);
+            PlayMelody(_isTask);
         }
 
         private void UpdateDisplay()
         {
-            int minutes = _remainingTime / 60;
+            int hours = _remainingTime / 3600;
+            int minutes = (_remainingTime % 3600) / 60;
             int seconds = _remainingTime % 60;
-            string time = $"{minutes:00}:{seconds:00}";
+            string time;
 
-            if (isTask)
+            // Show time in 00:00:00 format
+            // With hours as optional
+            if (hours > 0)
             {
-                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("PomodoroTimer.Resources.greenball.ico"));
-                _notifyIcon.Text = $"Task - {time}";
+                time = $"{hours:00}:{minutes:00}:{seconds:00}";
+
+                // Increase _toolTipForm.Size by 70 pixesl
+                _toolTipForm.Size = new System.Drawing.Size(_originalToolTipFormSize.Width + 70, _originalToolTipFormSize.Height);
             }
             else
             {
-                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("PomodoroTimer.Resources.redball.ico"));
-                _notifyIcon.Text = $"Break - {time}";
+                time = $"{minutes:00}:{seconds:00}";
+                _toolTipForm.Size = _originalToolTipFormSize;
             }
 
-            ShowToolTip();
+            string taskOrBreak = _isTask ? "Task" : "Break";
+
+            if (_isTask)
+            {
+                // Set green ball icon for task
+                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("PomodoroTimer.Resources.greenball.ico"));
+            }
+            else
+            {
+                // Set red ball icon for break
+                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("PomodoroTimer.Resources.redball.ico"));
+            }
+
+            // Create text with task or break and time
+            string notificationText = $"{taskOrBreak} - {time}";
+
+            // Update tooltip text if required
+            if (_hideToolTipTimer)
+            {
+                _notifyIcon.Text = notificationText;
+            }
+
+            // Show big tooltip if required
+            ShowToolTip(notificationText);
+
+            // Update times for break, task and total
             UpdateTotalTimes();
         }
 
         private void UpdateTotalTimes()
         {
-            totalBreaksTimeToolStripMenuItem.Text = $"Total Breaks Time: {TimeSpan.FromSeconds(_totalBreaksTime):hh\\:mm\\:ss}";
-            totalTasksTimeToolStripMenuItem.Text = $"Total Tasks Time: {TimeSpan.FromSeconds(_totalTasksTime):hh\\:mm\\:ss}";
+            totalBreaksTimeToolStripMenuItem.Text = $"Total Break Time: {TimeSpan.FromSeconds(_totalBreaksTime):hh\\:mm\\:ss}";
+            totalTasksTimeToolStripMenuItem.Text = $"Total Task Time: {TimeSpan.FromSeconds(_totalTasksTime):hh\\:mm\\:ss}";
             totalTimeToolStripMenuItem.Text = $"Total Time: {TimeSpan.FromSeconds(_totalBreaksTime + _totalTasksTime):hh\\:mm\\:ss}";
         }
 
@@ -166,11 +208,17 @@ namespace PomodoroTimer
             {
                 MethodInfo mi = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic);
                 mi.Invoke(_notifyIcon, null);
+                _notifyIcon.Text = "";
             }
 
             if (e.Button == MouseButtons.Left)
             {
                 _hideToolTipTimer = !_hideToolTipTimer;
+
+                if (!_hideToolTipTimer)
+                {
+                    _notifyIcon.Text = "";
+                }
             }
         }
 
@@ -179,9 +227,9 @@ namespace PomodoroTimer
             _notifyIcon.ShowBalloonTip(1000, "", message, ToolTipIcon.None);
         }
 
-        private void ShowToolTip()
+        private void ShowToolTip(string message)
         {
-            _toolTipForm.SetToolTip(_notifyIcon.Text);
+            _toolTipForm.SetToolTip(message);
 
             if (!_hideToolTipTimer)
             {
@@ -234,7 +282,7 @@ namespace PomodoroTimer
         private void goToBreakToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // If already in break do not switch to break
-            if (isTask)
+            if (_isTask)
             {
                 SwitchToBreak();
             }
@@ -243,7 +291,7 @@ namespace PomodoroTimer
         private void goToTaskToolStripMenuItem_Click(object sender, EventArgs e)
         {
             // If already in task do not switch to task
-            if (!isTask)
+            if (!_isTask)
             {
                 SwitchToTask();
             }
