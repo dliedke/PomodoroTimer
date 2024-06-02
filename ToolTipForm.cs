@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Drawing;
+using System.Linq;
 using System.Windows.Forms;
+using System.Xml;
 
 namespace PomodoroTimer
 {
@@ -24,7 +26,7 @@ namespace PomodoroTimer
             // Load last location
             if (Properties.Settings.Default.ToolTipFormLocation != null &&
                 Properties.Settings.Default.ToolTipFormLocation.X > 0 &&
-                Properties.Settings.Default.ToolTipFormLocation.Y > 0 )
+                Properties.Settings.Default.ToolTipFormLocation.Y > 0)
             {
                 this.Location = Properties.Settings.Default.ToolTipFormLocation;
             }
@@ -47,7 +49,66 @@ namespace PomodoroTimer
             {
                 lblText.ForeColor = Color.Red;
             }
+        }
 
+        public void SetFullScreen(bool isFullScreen)
+        {
+            if (isFullScreen)
+            {
+                // Allow the taskbar to be displayed
+                this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
+                this.WindowState = FormWindowState.Maximized;
+                this.Cursor = Cursors.Default;
+
+                // Increase lblText font size to 130
+                lblText.Font = new Font(lblText.Font.Name, 130, lblText.Font.Style, lblText.Font.Unit);
+
+                // Put label in middle of the screen considering DPI and label size
+                int screenWidth = Screen.PrimaryScreen.WorkingArea.Width;
+                int screenHeight = Screen.PrimaryScreen.WorkingArea.Height;
+                int labelWidth = lblText.Width;
+                int labelHeight = lblText.Height;
+                int labelX = (screenWidth - labelWidth) / 2;
+                int labelY = (screenHeight - labelHeight) / 2;
+                lblText.Location = new Point(labelX, labelY);
+
+                // Add an exit button in the bottom right corner
+                Button exitButton = new Button();
+                exitButton.Text = "Exit";
+                exitButton.Font = new Font(exitButton.Font.Name, 20, exitButton.Font.Style, exitButton.Font.Unit);
+                exitButton.Size = new Size(200, 100);
+                exitButton.Location = new Point(screenWidth - exitButton.Width - 20, screenHeight - exitButton.Height - 20);
+                exitButton.ForeColor = Color.White;
+                exitButton.Click += (sender, e) =>
+                {
+                    // Remove the exit button
+                    Button exitButton2 = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
+                    if (exitButton2 != null)
+                    {
+                        exitButton2.Visible = false;
+                    }
+                    Properties.Settings.Default.BreakFullScreen = false;
+                    SetFullScreen(false);
+                };
+                this.Controls.Add(exitButton);
+            }
+            else
+            {
+                this.WindowState = FormWindowState.Normal;
+                this.Cursor = Cursors.SizeAll;
+
+                // Decrease lblText font size to 12
+                lblText.Font = new Font(lblText.Font.Name, 12, lblText.Font.Style, lblText.Font.Unit);
+                lblText.Location = new Point(37, 7);
+
+                // Remove the exit button
+                Button exitButton2 = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
+                if (exitButton2 != null)
+                {
+                    this.Controls.Remove(exitButton2);
+                    exitButton2.Dispose();
+                }
+            }
         }
 
         #endregion

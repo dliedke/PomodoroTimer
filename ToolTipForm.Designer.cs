@@ -57,6 +57,7 @@
             this.MaximizeBox = false;
             this.MinimizeBox = false;
             this.Name = "ToolTipForm";
+            this.ShowInTaskbar = false;
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Show;
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.TopMost = true;

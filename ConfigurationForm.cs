@@ -9,10 +9,13 @@ namespace PomodoroTimer
         private Label lblTaskDuration;
         private Label lblBreakDuration;
         private Button btnSave;
+        private CheckBox _checkBoxBreakFullScreen;
         private NumericUpDown numBreakDuration;
 
         public int TaskDuration { get; set; }
         public int BreakDuration { get; set; }
+
+        public bool FullScreenBreak { get; set; }
 
         public ConfigurationForm()
         {
@@ -27,12 +30,14 @@ namespace PomodoroTimer
 
             numTaskDuration.Value = TaskDuration / 60;
             numBreakDuration.Value = BreakDuration / 60;
+            _checkBoxBreakFullScreen.Checked = FullScreenBreak;
         }
 
         private void btnSave_Click(object sender, EventArgs e)
         {
             TaskDuration = (int)numTaskDuration.Value * 60;
             BreakDuration = (int)numBreakDuration.Value * 60;
+            FullScreenBreak = _checkBoxBreakFullScreen.Checked;
             DialogResult = DialogResult.OK;
         }
 
@@ -43,6 +48,7 @@ namespace PomodoroTimer
             this.lblTaskDuration = new System.Windows.Forms.Label();
             this.lblBreakDuration = new System.Windows.Forms.Label();
             this.btnSave = new System.Windows.Forms.Button();
+            this._checkBoxBreakFullScreen = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.numBreakDuration)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numTaskDuration)).BeginInit();
             this.SuspendLayout();
@@ -122,7 +128,7 @@ namespace PomodoroTimer
             this.btnSave.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
             this.btnSave.Font = new System.Drawing.Font("Microsoft Sans Serif", 9.900001F, System.Drawing.FontStyle.Regular, System.Drawing.GraphicsUnit.Point, ((byte)(0)));
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(241, 270);
+            this.btnSave.Location = new System.Drawing.Point(241, 345);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(207, 83);
             this.btnSave.TabIndex = 4;
@@ -130,10 +136,22 @@ namespace PomodoroTimer
             this.btnSave.UseVisualStyleBackColor = true;
             this.btnSave.Click += new System.EventHandler(this.btnSave_Click);
             // 
+            // _checkBoxBreakFullScreen
+            // 
+            this._checkBoxBreakFullScreen.AutoSize = true;
+            this._checkBoxBreakFullScreen.ForeColor = System.Drawing.Color.White;
+            this._checkBoxBreakFullScreen.Location = new System.Drawing.Point(211, 253);
+            this._checkBoxBreakFullScreen.Name = "_checkBoxBreakFullScreen";
+            this._checkBoxBreakFullScreen.Size = new System.Drawing.Size(277, 36);
+            this._checkBoxBreakFullScreen.TabIndex = 5;
+            this._checkBoxBreakFullScreen.Text = "Full Screen Break";
+            this._checkBoxBreakFullScreen.UseVisualStyleBackColor = true;
+            // 
             // ConfigurationForm
             // 
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
-            this.ClientSize = new System.Drawing.Size(698, 414);
+            this.ClientSize = new System.Drawing.Size(698, 479);
+            this.Controls.Add(this._checkBoxBreakFullScreen);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.lblBreakDuration);
             this.Controls.Add(this.lblTaskDuration);
@@ -149,8 +167,6 @@ namespace PomodoroTimer
             ((System.ComponentModel.ISupportInitialize)(this.numTaskDuration)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
-
         }
-
     }
 }

@@ -1,6 +1,8 @@
 ﻿using System;
 using System.Reflection;
 using System.Windows.Forms;
+using System.Threading.Tasks;
+
 
 namespace PomodoroTimer
 {
@@ -12,6 +14,7 @@ namespace PomodoroTimer
 
         private int _taskDuration;
         private int _breakDuration;
+        private bool _fullScreenBreak;
         private int _remainingTime;
         private NotifyIcon _notifyIcon;
         private Timer _timer;
@@ -48,21 +51,35 @@ namespace PomodoroTimer
 
         public MainForm()
         {
+            InitializeComponent();
+
             _originalToolTipFormSize = _toolTipForm.Size;
 
-            // If no location is set, put _originalToolTipFormSize in center of screen
-            if (Properties.Settings.Default.ToolTipFormLocation != null &&
-                Properties.Settings.Default.ToolTipFormLocation.X == 0 &&
-                Properties.Settings.Default.ToolTipFormLocation.Y == 0)
+            // If no location is set, put _toolTipForm in center of screen
+            if (Properties.Settings.Default.ToolTipFormLocation == null ||
+                (Properties.Settings.Default.ToolTipFormLocation.X == 0 &&
+                 Properties.Settings.Default.ToolTipFormLocation.Y == 0))
             {
-                _toolTipForm.Location = new System.Drawing.Point(Screen.PrimaryScreen.Bounds.Width / 2 - _toolTipForm.Width / 2, Screen.PrimaryScreen.Bounds.Height / 2 - _toolTipForm.Height / 2);
+                _toolTipForm.StartPosition = FormStartPosition.Manual;
+                _toolTipForm.Location = new System.Drawing.Point(
+                    Screen.PrimaryScreen.Bounds.Width / 2 - _toolTipForm.Width / 2,
+                    Screen.PrimaryScreen.Bounds.Height / 2 - _toolTipForm.Height / 2);
+            }
+            else
+            {
+                _toolTipForm.Location = Properties.Settings.Default.ToolTipFormLocation;
             }
 
-            InitializeComponent();
             LoadSettings();
             InitializeTimer();
 
+            // Help tooltip when initializing
             _notifyIcon.Text = "Left click to hide/show timer\r\nRight click to show menu";
+
+            // Add app version to the exit menu item
+            Version version = Assembly.GetExecutingAssembly().GetName().Version;
+            string versionString = $"Pomodoro Timer v{version.Major}.{version.Minor}";
+            exitToolStripMenuItem.Text += $" ({versionString})";
         }
 
         #endregion
@@ -95,9 +112,13 @@ namespace PomodoroTimer
 
         private void Timer_Tick(object sender, EventArgs e)
         {
+            // Decrement the remaining time
             _remainingTime--;
+
+            // Update the display
             UpdateDisplay();
 
+            // Update the total task or break time
             if (_isTask)
             {
                 _totalTasksTime += 1;
@@ -107,6 +128,13 @@ namespace PomodoroTimer
                 _totalBreaksTime += 1;
             }
 
+            // Play a melody if the remaining time is 10 seconds
+            if (_remainingTime == 10)
+            {
+                PlayMelody(!_isTask);
+            }
+
+            // Switch to the other time if the remaining time is 0
             if (_remainingTime == 0)
             {
                 if (_isTask)
@@ -118,6 +146,7 @@ namespace PomodoroTimer
                     SwitchToTask();
                 }
 
+                // Update the total times
                 UpdateTotalTimes();
             }
         }
@@ -128,7 +157,6 @@ namespace PomodoroTimer
             _remainingTime = _breakDuration;
             UpdateDisplay();
             ShowNotification("BREAK time started!");
-            PlayMelody(_isTask);
         }
 
         private void SwitchToTask()
@@ -137,7 +165,6 @@ namespace PomodoroTimer
             _remainingTime = _taskDuration;
             UpdateDisplay();
             ShowNotification("TASK time started!");
-            PlayMelody(_isTask);
         }
 
         private void UpdateDisplay()
@@ -162,6 +189,7 @@ namespace PomodoroTimer
                 _toolTipForm.Size = _originalToolTipFormSize;
             }
 
+            // Get task or break string
             string taskOrBreak = _isTask ? "Task" : "Break";
 
             if (_isTask)
@@ -173,6 +201,16 @@ namespace PomodoroTimer
             {
                 // Set red ball icon for break
                 _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("PomodoroTimer.Resources.redball.ico"));
+            }
+
+            // Show break as full screen or regular break
+            if (_isTask == false && Properties.Settings.Default.BreakFullScreen)
+            {
+                _toolTipForm.SetFullScreen(true);
+            }
+            else
+            {
+                _toolTipForm.SetFullScreen(false);
             }
 
             // Create text with task or break and time
@@ -193,6 +231,7 @@ namespace PomodoroTimer
 
         private void UpdateTotalTimes()
         {
+            // Update Break/Task/Total times
             totalBreaksTimeToolStripMenuItem.Text = $"Total Break Time: {TimeSpan.FromSeconds(_totalBreaksTime):hh\\:mm\\:ss}";
             totalTasksTimeToolStripMenuItem.Text = $"Total Task Time: {TimeSpan.FromSeconds(_totalTasksTime):hh\\:mm\\:ss}";
             totalTimeToolStripMenuItem.Text = $"Total Time: {TimeSpan.FromSeconds(_totalBreaksTime + _totalTasksTime):hh\\:mm\\:ss}";
@@ -204,6 +243,7 @@ namespace PomodoroTimer
 
         private void notifyIcon_MouseClick(object sender, MouseEventArgs e)
         {
+            // If right click, show context menu
             if (e.Button == MouseButtons.Right)
             {
                 MethodInfo mi = typeof(NotifyIcon).GetMethod("ShowContextMenu", BindingFlags.Instance | BindingFlags.NonPublic);
@@ -211,6 +251,7 @@ namespace PomodoroTimer
                 _notifyIcon.Text = "";
             }
 
+            // If left click, hide/show timer
             if (e.Button == MouseButtons.Left)
             {
                 _hideToolTipTimer = !_hideToolTipTimer;
@@ -224,7 +265,8 @@ namespace PomodoroTimer
 
         private void ShowNotification(string message)
         {
-            _notifyIcon.ShowBalloonTip(1000, "", message, ToolTipIcon.None);
+            // Show notification
+            _notifyIcon.ShowBalloonTip(100, "", message, ToolTipIcon.None);
         }
 
         private void ShowToolTip(string message)
@@ -245,24 +287,31 @@ namespace PomodoroTimer
 
         public void PlayMelody(bool isTask)
         {
-            int tempo = 100;
-
-            int noteC = 662;
-            int noteD = 694;
-            int noteE = 830;
-
-            if (isTask)
+            Task.Run(() =>
             {
-                noteC = 830;
-                noteD = 694;
-                noteE = 662;
-            }
+                int tempo = 300;
+                int[] frequencies;
+                int[] durations;
 
-            Console.Beep(noteC, tempo);
-            System.Threading.Thread.Sleep(tempo / 2);
-            Console.Beep(noteD, tempo);
-            System.Threading.Thread.Sleep(tempo / 2);
-            Console.Beep(noteE, tempo);
+                if (isTask)
+                {
+                    // Task sound
+                    frequencies = new int[] { 523, 523 };
+                    durations = new int[] { tempo, tempo };
+                }
+                else
+                {
+                    // Break sound
+                    frequencies = new int[] { 1047, 1047 };
+                    durations = new int[] { tempo, tempo };
+                }
+
+                for (int i = 0; i < frequencies.Length; i++)
+                {
+                    Console.Beep(frequencies[i], durations[i]);
+                    System.Threading.Thread.Sleep(tempo / 4);
+                }
+            });
         }
 
         #endregion
@@ -299,14 +348,21 @@ namespace PomodoroTimer
 
         private void configureToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            ConfigurationForm configForm = new ConfigurationForm();
-            configForm.TaskDuration = _taskDuration;
-            configForm.BreakDuration = _breakDuration;
+            // Open configuration form
+            ConfigurationForm configForm = new ConfigurationForm
+            {
+                FullScreenBreak = _fullScreenBreak,
+                TaskDuration = _taskDuration,
+                BreakDuration = _breakDuration
+            };
 
+            // Save configuration if saved button was clicked
             if (configForm.ShowDialog() == DialogResult.OK)
             {
                 _taskDuration = configForm.TaskDuration;
                 _breakDuration = configForm.BreakDuration;
+                _fullScreenBreak = configForm.FullScreenBreak;
+
                 SaveSettings();
                 InitializeTimer();
             }
@@ -320,12 +376,14 @@ namespace PomodoroTimer
         {
             _taskDuration = int.Parse(Properties.Settings.Default.TaskDuration);
             _breakDuration = int.Parse(Properties.Settings.Default.BreakDuration);
+            _fullScreenBreak = Properties.Settings.Default.BreakFullScreen;
         }
 
         private void SaveSettings()
         {
             Properties.Settings.Default.TaskDuration = _taskDuration.ToString();
             Properties.Settings.Default.BreakDuration = _breakDuration.ToString();
+            Properties.Settings.Default.BreakFullScreen = _fullScreenBreak;
             Properties.Settings.Default.Save();
         }
 
