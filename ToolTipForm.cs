@@ -99,7 +99,17 @@ namespace PomodoroTimer
 
                 // Decrease lblText font size to 12
                 lblText.Font = new Font(lblText.Font.Name, 12, lblText.Font.Style, lblText.Font.Unit);
-                lblText.Location = new Point(37, 7);
+
+                using (Graphics graphics = lblText.CreateGraphics())
+                {
+                    int dpiX = (int)graphics.DpiX;
+                    int dpiY = (int)graphics.DpiY;
+
+                    int labelX = (int)(12 * (dpiX / 96.0));
+                    int labelY = (int)(3 * (dpiY / 96.0));
+
+                    lblText.Location = new Point(labelX, labelY);
+                }
 
                 // Remove the exit button
                 Button exitButton2 = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");

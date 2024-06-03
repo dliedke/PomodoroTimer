@@ -180,15 +180,15 @@ namespace PomodoroTimer
             {
                 time = $"{hours:00}:{minutes:00}:{seconds:00}";
 
-                // Increase _toolTipForm.Size by 70 pixesl
-                _toolTipForm.Size = new System.Drawing.Size(_originalToolTipFormSize.Width + 70, _originalToolTipFormSize.Height);
+                // Increase _toolTipForm.Size by 12%
+                _toolTipForm.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width *1.2), _originalToolTipFormSize.Height);
             }
             else
             {
                 time = $"{minutes:00}:{seconds:00}";
                 _toolTipForm.Size = _originalToolTipFormSize;
             }
-
+            
             // Get task or break string
             string taskOrBreak = _isTask ? "Task" : "Break";
 
