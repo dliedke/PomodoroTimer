@@ -21,8 +21,7 @@ namespace PomodoroTimer
 
         private new ContextMenuStrip ContextMenu;
 
-        private ToolStripMenuItem startToolStripMenuItem;
-        private ToolStripMenuItem stopToolStripMenuItem;
+        private ToolStripMenuItem pauseToolStripMenuItem;
         private ToolStripSeparator toolStripMenuItemSeparator1;
 
         private ToolStripMenuItem goToBreakToolStripMenuItem;
@@ -103,11 +102,13 @@ namespace PomodoroTimer
         private void StartTimer()
         {
             _timer.Start();
+            pauseToolStripMenuItem.Text = "Pause timer";
         }
 
         private void StopTimer()
         {
             _timer.Stop();
+            pauseToolStripMenuItem.Text = "Continue timer";
         }
 
         private void Timer_Tick(object sender, EventArgs e)
@@ -181,14 +182,14 @@ namespace PomodoroTimer
                 time = $"{hours:00}:{minutes:00}:{seconds:00}";
 
                 // Increase _toolTipForm.Size by 12%
-                _toolTipForm.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width *1.2), _originalToolTipFormSize.Height);
+                _toolTipForm.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.2), _originalToolTipFormSize.Height);
             }
             else
             {
                 time = $"{minutes:00}:{seconds:00}";
                 _toolTipForm.Size = _originalToolTipFormSize;
             }
-            
+
             // Get task or break string
             string taskOrBreak = _isTask ? "Task" : "Break";
 
@@ -317,15 +318,18 @@ namespace PomodoroTimer
         #endregion
 
         #region Context Menus
-
-        private void startToolStripMenuItem_Click(object sender, EventArgs e)
+        private void pauseToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            StartTimer();
-        }
-
-        private void stopToolStripMenuItem_Click(object sender, EventArgs e)
-        {
-            StopTimer();
+            if (_timer.Enabled)
+            {
+                StopTimer();
+                pauseToolStripMenuItem.Text = "Continue timer";
+            }
+            else
+            {
+                StartTimer();
+                pauseToolStripMenuItem.Text = "Pause timer";
+            }
         }
 
         private void goToBreakToolStripMenuItem_Click(object sender, EventArgs e)
@@ -410,8 +414,7 @@ namespace PomodoroTimer
             this.components = new System.ComponentModel.Container();
             this._notifyIcon = new System.Windows.Forms.NotifyIcon(this.components);
             this.ContextMenu = new System.Windows.Forms.ContextMenuStrip(this.components);
-            this.startToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.stopToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.pauseToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemSeparator2 = new System.Windows.Forms.ToolStripSeparator();
             this.goToTaskToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.goToBreakToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -440,35 +443,27 @@ namespace PomodoroTimer
             // 
             this.ContextMenu.ImageScalingSize = new System.Drawing.Size(40, 40);
             this.ContextMenu.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.startToolStripMenuItem,
-            this.stopToolStripMenuItem,
-            this.toolStripMenuItemSeparator2,
-            this.goToTaskToolStripMenuItem,
-            this.goToBreakToolStripMenuItem,
-            this.toolStripMenuItemSeparator3,
-            this.configureToolStripMenuItem,
-            this.toolStripMenuItemSeparator4,
-            this.totalBreaksTimeToolStripMenuItem,
-            this.totalTasksTimeToolStripMenuItem,
-            this.totalTimeToolStripMenuItem,
-            this.toolStripMenuItemSeparator1,
-            this.exitToolStripMenuItem});
+                                            this.pauseToolStripMenuItem,
+                                            this.toolStripMenuItemSeparator2,
+                                            this.goToTaskToolStripMenuItem,
+                                            this.goToBreakToolStripMenuItem,
+                                            this.toolStripMenuItemSeparator3,
+                                            this.configureToolStripMenuItem,
+                                            this.toolStripMenuItemSeparator4,
+                                            this.totalBreaksTimeToolStripMenuItem,
+                                            this.totalTasksTimeToolStripMenuItem,
+                                            this.totalTimeToolStripMenuItem,
+                                            this.toolStripMenuItemSeparator1,
+                                            this.exitToolStripMenuItem});
             this.ContextMenu.Name = "ContextMenu";
-            this.ContextMenu.Size = new System.Drawing.Size(452, 460);
+            this.ContextMenu.Size = new System.Drawing.Size(452, 412);
             // 
-            // startToolStripMenuItem
+            // pauseToolStripMenuItem
             // 
-            this.startToolStripMenuItem.Name = "startToolStripMenuItem";
-            this.startToolStripMenuItem.Size = new System.Drawing.Size(451, 48);
-            this.startToolStripMenuItem.Text = "Start";
-            this.startToolStripMenuItem.Click += new System.EventHandler(this.startToolStripMenuItem_Click);
-            // 
-            // stopToolStripMenuItem
-            // 
-            this.stopToolStripMenuItem.Name = "stopToolStripMenuItem";
-            this.stopToolStripMenuItem.Size = new System.Drawing.Size(451, 48);
-            this.stopToolStripMenuItem.Text = "Stop";
-            this.stopToolStripMenuItem.Click += new System.EventHandler(this.stopToolStripMenuItem_Click);
+            this.pauseToolStripMenuItem.Name = "pauseToolStripMenuItem";
+            this.pauseToolStripMenuItem.Size = new System.Drawing.Size(451, 48);
+            this.pauseToolStripMenuItem.Text = "Pause timer";
+            this.pauseToolStripMenuItem.Click += new System.EventHandler(this.pauseToolStripMenuItem_Click);
             // 
             // toolStripMenuItemSeparator2
             // 
@@ -563,7 +558,6 @@ namespace PomodoroTimer
             this.StartPosition = System.Windows.Forms.FormStartPosition.CenterScreen;
             this.ContextMenu.ResumeLayout(false);
             this.ResumeLayout(false);
-
         }
 
         #endregion
