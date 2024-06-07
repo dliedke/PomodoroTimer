@@ -1,8 +1,6 @@
-﻿using System;
+﻿using System.Linq;
 using System.Drawing;
-using System.Linq;
 using System.Windows.Forms;
-using System.Xml;
 
 namespace PomodoroTimer
 {
@@ -40,14 +38,14 @@ namespace PomodoroTimer
         {
             lblText.Text = text;
 
-            // If text contains Task show text green, if text contains Break show text as red
-            if (text.Contains("Task"))
+            // If text contains break show text as red otherwise green
+            if (text.Contains("Break"))
             {
-                lblText.ForeColor = Color.LightGreen;
+                lblText.ForeColor = Color.Red;
             }
             else
             {
-                lblText.ForeColor = Color.Red;
+                lblText.ForeColor = Color.LightGreen;
             }
         }
 
@@ -89,6 +87,15 @@ namespace PomodoroTimer
                     }
                     Properties.Settings.Default.BreakFullScreen = false;
                     SetFullScreen(false);
+
+                    MainForm mainForm = (MainForm)Application.OpenForms["MainForm"];
+                    mainForm.Hide();
+                    mainForm.Show();
+
+                    if (mainForm._currentStatus == TimerStatus.Launch)
+                    {
+                        mainForm.SwitchToTask();
+                    }
                 };
                 this.Controls.Add(exitButton);
             }
