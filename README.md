@@ -1,4 +1,4 @@
-# PomodoroTimer
+# Pomodoro Timer
 Simple minimalistic configurable Pomodoro Timer with:
 
 - Configurable task time
