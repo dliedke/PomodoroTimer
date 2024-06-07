@@ -6,7 +6,7 @@ namespace PomodoroTimer
 {
     public class MetricsReportManager
     {
-        private static string ReportFilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "metrics_report.csv");
+        private static string ReportFilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "pomodoro_timer_report.csv");
 
         public static void SaveMetricsReport(DateTime date, int totalTasksTime, int totalMeetingTime, int totalBreaksTime, int totalLaunchTime)
         {
