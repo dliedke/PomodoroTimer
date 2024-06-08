@@ -1,10 +1,24 @@
-﻿using System;
+﻿/* *******************************************************************************************************************
+ * Application: PomodoroTimer
+ * 
+ * Autor:  Daniel Liedke
+ * 
+ * Copyright © Daniel Liedke 2024
+ * Usage and reproduction in any manner whatsoever without the written permission of Daniel Liedke is strictly forbidden.
+ *  
+ * Purpose: Configuration screen to setup task and break time
+ *           
+ * *******************************************************************************************************************/
+
+using System;
 using System.Windows.Forms;
 
 namespace PomodoroTimer
 {
     public partial class ConfigurationForm : Form
     {
+        #region Class variables/Properties/Constructor
+
         private NumericUpDown numTaskDuration;
         private Label lblTaskDuration;
         private Label lblBreakDuration;
@@ -21,6 +35,10 @@ namespace PomodoroTimer
         {
             InitializeComponent();
         }
+
+        #endregion
+
+        #region Load/Save settings
 
         private void ConfigurationForm_Load(object sender, EventArgs e)
         {
@@ -40,6 +58,10 @@ namespace PomodoroTimer
             FullScreenBreak = _checkBoxBreakFullScreen.Checked;
             DialogResult = DialogResult.OK;
         }
+
+        #endregion
+
+        #region Design
 
         private void InitializeComponent()
         {
@@ -168,5 +190,7 @@ namespace PomodoroTimer
             this.ResumeLayout(false);
             this.PerformLayout();
         }
+
+        #endregion
     }
 }

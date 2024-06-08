@@ -1,4 +1,16 @@
-﻿using System;
+﻿/* *******************************************************************************************************************
+ * Application: PomodoroTimer
+ * 
+ * Autor:  Daniel Liedke
+ * 
+ * Copyright © Daniel Liedke 2024
+ * Usage and reproduction in any manner whatsoever without the written permission of Daniel Liedke is strictly forbidden.
+ *  
+ * Purpose: Save/load CSV with metrics per day
+ *           
+ * *******************************************************************************************************************/
+
+using System;
 using System.IO;
 using System.Linq;
 

@@ -1,4 +1,16 @@
-﻿using System.Linq;
+﻿/* *******************************************************************************************************************
+ * Application: PomodoroTimer
+ * 
+ * Autor:  Daniel Liedke
+ * 
+ * Copyright © Daniel Liedke 2024
+ * Usage and reproduction in any manner whatsoever without the written permission of Daniel Liedke is strictly forbidden.
+ *  
+ * Purpose: Tooltip form for the timer, including full screen mode
+ *           
+ * *******************************************************************************************************************/
+
+using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
 
@@ -70,34 +82,8 @@ namespace PomodoroTimer
                 int labelY = (screenHeight - labelHeight) / 2;
                 lblText.Location = new Point(labelX, labelY);
 
-                // Add an exit button in the bottom right corner
-                Button exitButton = new Button();
-                exitButton.Text = "Exit";
-                exitButton.Font = new Font(exitButton.Font.Name, 20, exitButton.Font.Style, exitButton.Font.Unit);
-                exitButton.Size = new Size(200, 100);
-                exitButton.Location = new Point(screenWidth - exitButton.Width - 20, screenHeight - exitButton.Height - 20);
-                exitButton.ForeColor = Color.White;
-                exitButton.Click += (sender, e) =>
-                {
-                    // Remove the exit button
-                    Button exitButton2 = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
-                    if (exitButton2 != null)
-                    {
-                        exitButton2.Visible = false;
-                    }
-                    Properties.Settings.Default.BreakFullScreen = false;
-                    SetFullScreen(false);
-
-                    MainForm mainForm = (MainForm)Application.OpenForms["MainForm"];
-                    mainForm.Hide();
-                    mainForm.Show();
-
-                    if (mainForm._currentStatus == TimerStatus.Launch)
-                    {
-                        mainForm.SwitchToTask();
-                    }
-                };
-                this.Controls.Add(exitButton);
+                // Add exit and +5 buttons
+                AddButtons(screenWidth, screenHeight);
             }
             else
             {
@@ -106,25 +92,85 @@ namespace PomodoroTimer
 
                 // Decrease lblText font size to 12
                 lblText.Font = new Font(lblText.Font.Name, 12, lblText.Font.Style, lblText.Font.Unit);
-
                 using (Graphics graphics = lblText.CreateGraphics())
                 {
                     int dpiX = (int)graphics.DpiX;
                     int dpiY = (int)graphics.DpiY;
-
                     int labelX = (int)(12 * (dpiX / 96.0));
                     int labelY = (int)(3 * (dpiY / 96.0));
-
                     lblText.Location = new Point(labelX, labelY);
                 }
 
-                // Remove the exit button
+                // Remove exit/+5 buttons if required
+                RemoveButtons();
+            }
+        }
+
+        private void AddButtons(int screenWidth, int screenHeight)
+        {
+
+            // Add an exit button in the bottom right corner
+            Button exitButton = new Button();
+            exitButton.Text = "Exit";
+            exitButton.Font = new Font(exitButton.Font.Name, 20, exitButton.Font.Style, exitButton.Font.Unit);
+            exitButton.Size = new Size(200, 100);
+            exitButton.Location = new Point(screenWidth - exitButton.Width - 20, screenHeight - exitButton.Height - 20);
+            exitButton.ForeColor = Color.White;
+            exitButton.Cursor = Cursors.Hand;
+            exitButton.Click += (sender, e) =>
+            {
+                // Remove the exit button and add 5 minutes button
                 Button exitButton2 = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
                 if (exitButton2 != null)
                 {
-                    this.Controls.Remove(exitButton2);
-                    exitButton2.Dispose();
+                    exitButton2.Visible = false;
                 }
+                Button addMinutesButton = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "+5 Minutes");
+                if (addMinutesButton != null)
+                {
+                    addMinutesButton.Visible = false;
+                }
+
+                // Switch back to task
+                MainForm mainForm = (MainForm)Application.OpenForms["MainForm"];
+                mainForm.SwitchToTask();
+            };
+            this.Controls.Add(exitButton);
+
+            // Add a "+5 Minutes" button next to the exit button
+            if (((MainForm)Application.OpenForms["MainForm"]).CurrentStatus == TimerStatus.Break)
+            {
+                Button addMinutesButton = new Button();
+                addMinutesButton.Text = "+5 Minutes";
+                addMinutesButton.Font = new Font(addMinutesButton.Font.Name, 20, addMinutesButton.Font.Style, addMinutesButton.Font.Unit);
+                addMinutesButton.Size = new Size(400, 100);
+                addMinutesButton.Location = new Point(screenWidth - addMinutesButton.Width - exitButton.Width - 40, screenHeight - addMinutesButton.Height - 20);
+                addMinutesButton.ForeColor = Color.White;
+                addMinutesButton.Cursor = Cursors.Hand;
+                addMinutesButton.Click += (sender, e) =>
+                {
+                    // Add 5 minutes (300 seconds)
+                    MainForm mainForm = (MainForm)Application.OpenForms["MainForm"];
+                    mainForm.RemainingTime += 300; 
+                };
+                this.Controls.Add(addMinutesButton);
+            }
+        }
+
+        private void RemoveButtons()
+        {
+            // Remove the exit button and add 5 minutes button
+            Button exitButton2 = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
+            if (exitButton2 != null)
+            {
+                this.Controls.Remove(exitButton2);
+                exitButton2.Dispose();
+            }
+            Button addMinutesButton = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "+5 Minutes");
+            if (addMinutesButton != null)
+            {
+                this.Controls.Remove(addMinutesButton);
+                addMinutesButton.Dispose();
             }
         }
 

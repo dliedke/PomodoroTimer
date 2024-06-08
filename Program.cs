@@ -1,7 +1,16 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+﻿/* *******************************************************************************************************************
+ * Application: PomodoroTimer
+ * 
+ * Autor:  Daniel Liedke
+ * 
+ * Copyright © Daniel Liedke 2024
+ * Usage and reproduction in any manner whatsoever without the written permission of Daniel Liedke is strictly forbidden.
+ *  
+ * Purpose: Program entry point
+ *           
+ * *******************************************************************************************************************/
+
+using System;
 using System.Windows.Forms;
 
 namespace PomodoroTimer
