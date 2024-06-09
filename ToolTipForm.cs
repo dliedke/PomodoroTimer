@@ -49,20 +49,12 @@ namespace PomodoroTimer
         public void SetToolTip(string text)
         {
             lblText.Text = text;
-
-            // If text contains break show text as red otherwise green
-            if (text.Contains("Break"))
-            {
-                lblText.ForeColor = Color.Red;
-            }
-            else
-            {
-                lblText.ForeColor = Color.LightGreen;
-            }
         }
 
-        public void SetFullScreen(bool isFullScreen)
+        public void SetFullScreen(bool isFullScreen, PomodoroTimer.TimerStatus timerStatus)
         {
+            SetToolTipColor(timerStatus);
+
             if (isFullScreen)
             {
                 // Allow the taskbar to be displayed
@@ -82,8 +74,8 @@ namespace PomodoroTimer
                 int labelY = (screenHeight - labelHeight) / 2;
                 lblText.Location = new Point(labelX, labelY);
 
-                // Add exit and +5 buttons
-                AddButtons(screenWidth, screenHeight);
+                // Add exit and +5 buttons if required
+                AddButtons(screenWidth, screenHeight, timerStatus == TimerStatus.Break);
             }
             else
             {
@@ -106,9 +98,33 @@ namespace PomodoroTimer
             }
         }
 
-        private void AddButtons(int screenWidth, int screenHeight)
+        private void SetToolTipColor(TimerStatus timerStatus)
         {
+            // Red for regular break and long break
+            if (timerStatus == TimerStatus.Break ||
+                timerStatus == TimerStatus.LongBreak)
+            {
+                lblText.ForeColor = Color.Red;
+            }
+            // Green for lunch
+            if (timerStatus == TimerStatus.Lunch)
+            {
+                lblText.ForeColor = Color.LightGreen;
+            }
+            // Orange for meeting
+            if (timerStatus == TimerStatus.Meeting)
+            {
+                lblText.ForeColor = Color.Orange;
+            }
+            // Green for task
+            if (timerStatus == TimerStatus.Task)
+            {
+                lblText.ForeColor = Color.LightGreen;
+            }
+        }
 
+        private void AddButtons(int screenWidth, int screenHeight, bool add5)
+        {
             // Add an exit button in the bottom right corner
             Button exitButton = new Button();
             exitButton.Text = "Exit";
@@ -117,6 +133,7 @@ namespace PomodoroTimer
             exitButton.Location = new Point(screenWidth - exitButton.Width - 20, screenHeight - exitButton.Height - 20);
             exitButton.ForeColor = Color.White;
             exitButton.Cursor = Cursors.Hand;
+            exitButton.Focus();
             exitButton.Click += (sender, e) =>
             {
                 // Remove the exit button and add 5 minutes button
@@ -137,23 +154,26 @@ namespace PomodoroTimer
             };
             this.Controls.Add(exitButton);
 
-            // Add a "+5 Minutes" button next to the exit button
-            if (((MainForm)Application.OpenForms["MainForm"]).CurrentStatus == TimerStatus.Break)
+            if (add5)
             {
-                Button addMinutesButton = new Button();
-                addMinutesButton.Text = "+5 Minutes";
-                addMinutesButton.Font = new Font(addMinutesButton.Font.Name, 20, addMinutesButton.Font.Style, addMinutesButton.Font.Unit);
-                addMinutesButton.Size = new Size(400, 100);
-                addMinutesButton.Location = new Point(screenWidth - addMinutesButton.Width - exitButton.Width - 40, screenHeight - addMinutesButton.Height - 20);
-                addMinutesButton.ForeColor = Color.White;
-                addMinutesButton.Cursor = Cursors.Hand;
-                addMinutesButton.Click += (sender, e) =>
+                // Add a "+5 Minutes" button next to the exit button
+                if (((MainForm)Application.OpenForms["MainForm"]).CurrentStatus == TimerStatus.Break)
                 {
-                    // Add 5 minutes (300 seconds)
-                    MainForm mainForm = (MainForm)Application.OpenForms["MainForm"];
-                    mainForm.RemainingTime += 300; 
-                };
-                this.Controls.Add(addMinutesButton);
+                    Button addMinutesButton = new Button();
+                    addMinutesButton.Text = "+5 Minutes";
+                    addMinutesButton.Font = new Font(addMinutesButton.Font.Name, 20, addMinutesButton.Font.Style, addMinutesButton.Font.Unit);
+                    addMinutesButton.Size = new Size(400, 100);
+                    addMinutesButton.Location = new Point(screenWidth - addMinutesButton.Width - exitButton.Width - 40, screenHeight - addMinutesButton.Height - 20);
+                    addMinutesButton.ForeColor = Color.White;
+                    addMinutesButton.Cursor = Cursors.Hand;
+                    addMinutesButton.Click += (sender, e) =>
+                    {
+                        // Add 5 minutes (300 seconds)
+                        MainForm mainForm = (MainForm)Application.OpenForms["MainForm"];
+                        mainForm.RemainingTime += 300;
+                    };
+                    this.Controls.Add(addMinutesButton);
+                }
             }
         }
 
@@ -230,6 +250,19 @@ namespace PomodoroTimer
 
         #region Form Closing
 
+        private void ToolTipForm_KeyDown(object sender, KeyEventArgs e)
+        {
+            // If full screen and esc key, click in the exit button
+            if (this.WindowState == FormWindowState.Maximized)
+            {
+                Button exitButton = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
+                if (exitButton != null)
+                {
+                    exitButton.PerformClick();
+                }
+            }
+        }
+
         private void ToolTipForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             Properties.Settings.Default.ToolTipFormLocation = this.Location;
@@ -237,5 +270,6 @@ namespace PomodoroTimer
         }
 
         #endregion
+
     }
 }

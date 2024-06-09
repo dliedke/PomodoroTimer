@@ -53,6 +53,7 @@
             this.Controls.Add(this.lblText);
             this.Cursor = System.Windows.Forms.Cursors.SizeAll;
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedToolWindow;
+            this.KeyPreview = true;
             this.Margin = new System.Windows.Forms.Padding(3, 2, 3, 2);
             this.MaximizeBox = false;
             this.MinimizeBox = false;
@@ -62,6 +63,7 @@
             this.StartPosition = System.Windows.Forms.FormStartPosition.Manual;
             this.TopMost = true;
             this.FormClosing += new System.Windows.Forms.FormClosingEventHandler(this.ToolTipForm_FormClosing);
+            this.KeyDown += new System.Windows.Forms.KeyEventHandler(this.ToolTipForm_KeyDown);
             this.ResumeLayout(false);
             this.PerformLayout();
 

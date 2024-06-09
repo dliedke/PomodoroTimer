@@ -20,16 +20,17 @@ namespace PomodoroTimer
     {
         private static string ReportFilePath => Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Desktop), "pomodoro_timer_report.csv");
 
-        public static void SaveMetricsReport(DateTime date, int totalTasksTime, int totalMeetingTime, int totalBreaksTime, int totalLaunchTime)
+        public static void SaveMetricsReport(DateTime date, int totalTasksTime, int totalMeetingTime, int totalBreaksTime, int totalLunchTime, int totalLongBreakTime)
         {
-            int totalTime = totalTasksTime + totalMeetingTime + totalBreaksTime + totalLaunchTime;
+            int totalTime = totalTasksTime + totalMeetingTime + totalBreaksTime + totalLunchTime + totalLongBreakTime;
 
-            string reportLine = $"{date.ToString("yyyy-MM-dd")},{totalTasksTime},{totalMeetingTime},{totalBreaksTime},{totalLaunchTime},{totalTime},{FormatTime(totalTasksTime)},{FormatTime(totalMeetingTime)},{FormatTime(totalBreaksTime)},{FormatTime(totalLaunchTime)},{FormatTime(totalTime)}";
+            string reportLine = $"{date.ToString("yyyy-MM-dd")},{totalTasksTime},{totalMeetingTime},{totalBreaksTime},{totalLunchTime},{totalLongBreakTime},{totalTime},{FormatTime(totalTasksTime)},{FormatTime(totalMeetingTime)},{FormatTime(totalBreaksTime)},{FormatTime(totalLunchTime)},{FormatTime(totalLongBreakTime)},{FormatTime(totalTime)}";
+
 
             // Add header row if the file doesn't exist
             if (!File.Exists(ReportFilePath))
             {
-                string headerRow = "Date,Total Task Seconds,Total Meeting Seconds,Total Break Seconds,Total Launch Seconds,Total Seconds,Total Task Time,Total Meeting Time,Total Break Time,Total Launch Time,Total Time";
+                string headerRow = "Date,Total Task Seconds,Total Meeting Seconds,Total Break Seconds,Total Lunch Seconds,Total Seconds,Total Task Time,Total Meeting Time,Total Break Time,Total Lunch Time,Total Time";
                 File.WriteAllText(ReportFilePath, headerRow + Environment.NewLine);
             }
 
@@ -57,7 +58,7 @@ namespace PomodoroTimer
             }
         }
 
-        public static (int totalTasksTime, int totalMeetingTime, int totalBreaksTime, int totalLaunchTime, int totalTime) LoadMetricsReport(DateTime date)
+        public static (int totalTasksTime, int totalMeetingTime, int totalBreaksTime, int totalLunchTime, int totalLongBreakTime, int totalTime) LoadMetricsReport(DateTime date)
         {
             if (File.Exists(ReportFilePath))
             {
@@ -68,19 +69,20 @@ namespace PomodoroTimer
                 if (!string.IsNullOrEmpty(reportLine))
                 {
                     string[] values = reportLine.Split(',');
-                    if (values.Length == 11 &&
+                    if (values.Length == 13 &&
                         int.TryParse(values[1], out int totalTasksTime) &&
                         int.TryParse(values[2], out int totalMeetingTime) &&
                         int.TryParse(values[3], out int totalBreaksTime) &&
-                        int.TryParse(values[4], out int totalLaunchTime) &&
-                        int.TryParse(values[5], out int totalTime))
+                        int.TryParse(values[4], out int totalLunchTime) &&
+                        int.TryParse(values[5], out int totalLongBreakTime) &&
+                        int.TryParse(values[6], out int totalTime))
                     {
-                        return (totalTasksTime, totalMeetingTime, totalBreaksTime, totalLaunchTime, totalTime);
+                        return (totalTasksTime, totalMeetingTime, totalBreaksTime, totalLunchTime, totalLongBreakTime, totalTime);
                     }
                 }
             }
 
-            return (0, 0, 0, 0, 0);
+            return (0, 0, 0, 0, 0, 0);
         }
 
         private static string FormatTime(int totalSeconds)
