@@ -49,6 +49,11 @@ namespace PomodoroTimer
         public void SetToolTip(string text)
         {
             lblText.Text = text;
+
+            if (this.WindowState == FormWindowState.Maximized)
+            {
+                this.Activate();
+            }
         }
 
         public void SetFullScreen(bool isFullScreen, PomodoroTimer.TimerStatus timerStatus)
@@ -95,6 +100,14 @@ namespace PomodoroTimer
 
                 // Remove exit/+5 buttons if required
                 RemoveButtons();
+
+                // Load last location
+                if (Properties.Settings.Default.ToolTipFormLocation != null &&
+                    Properties.Settings.Default.ToolTipFormLocation.X > 0 &&
+                    Properties.Settings.Default.ToolTipFormLocation.Y > 0)
+                {
+                    this.Location = Properties.Settings.Default.ToolTipFormLocation;
+                }
             }
         }
 
@@ -220,6 +233,10 @@ namespace PomodoroTimer
         private void lblText_MouseUp(object sender, MouseEventArgs e)
         {
             isDragging = false;
+
+            // Save new location
+            Properties.Settings.Default.ToolTipFormLocation = this.Location;
+            Properties.Settings.Default.Save();
         }
 
         private void ToolTipForm_MouseDown(object sender, MouseEventArgs e)
@@ -244,6 +261,10 @@ namespace PomodoroTimer
         private void ToolTipForm_MouseUp(object sender, MouseEventArgs e)
         {
             isDragging = false;
+
+            // Save new location
+            Properties.Settings.Default.ToolTipFormLocation = this.Location;
+            Properties.Settings.Default.Save();
         }
 
         #endregion
@@ -252,13 +273,17 @@ namespace PomodoroTimer
 
         private void ToolTipForm_KeyDown(object sender, KeyEventArgs e)
         {
-            // If full screen and esc key, click in the exit button
-            if (this.WindowState == FormWindowState.Maximized)
+            // Check if the Esc key was pressed
+            if (e.KeyCode == Keys.Escape)
             {
-                Button exitButton = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
-                if (exitButton != null)
+                // If full screen and esc key, click in the exit button
+                if (this.WindowState == FormWindowState.Maximized)
                 {
-                    exitButton.PerformClick();
+                    Button exitButton = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
+                    if (exitButton != null)
+                    {
+                        exitButton.PerformClick();
+                    }
                 }
             }
         }
@@ -270,6 +295,5 @@ namespace PomodoroTimer
         }
 
         #endregion
-
     }
 }

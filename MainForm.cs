@@ -11,12 +11,13 @@
  * *******************************************************************************************************************/
 
 using System;
+using System.Drawing;
 using System.Threading;
 using System.Reflection;
 using System.Diagnostics;
 using System.Windows.Forms;
 using System.Threading.Tasks;
-using System.Drawing;
+using System.Windows.Automation;
 using System.Runtime.InteropServices;
 
 namespace PomodoroTimer
@@ -32,7 +33,6 @@ namespace PomodoroTimer
 
     public partial class MainForm : Form
     {
-
         #region Class Variables / Constructor
 
         private System.ComponentModel.IContainer components;
@@ -64,6 +64,8 @@ namespace PomodoroTimer
         private ToolStripMenuItem totalMeetingTimeToolStripMenuItem;
         private ToolStripMenuItem totalLunchTimeToolStripMenuItem;
         private ToolStripMenuItem totalLongBreakTimeToolStripMenuItem;
+        private ToolStripMenuItem totalWorkTimeToolStripMenuItem;
+        private ToolStripMenuItem totalRestTimeToolStripMenuItem;
         private ToolStripMenuItem totalTimeToolStripMenuItem;
         private ToolStripSeparator toolStripMenuItemSeparator2;
 
@@ -82,6 +84,8 @@ namespace PomodoroTimer
         private System.Drawing.Size _originalToolTipFormSize;
 
         private int _remainingTime;
+        private ToolStripSeparator toolStripMenuItem1;
+
         public int RemainingTime
         {
             get { return _remainingTime; }
@@ -94,6 +98,8 @@ namespace PomodoroTimer
             get { return _currentStatus; }
             set { _currentStatus = value; }
         }
+
+
 
         public MainForm()
         {
@@ -146,7 +152,7 @@ namespace PomodoroTimer
             _timer.Tick += Timer_Tick;
             _remainingTime = _taskDuration;
             _currentStatus = TimerStatus.Task;
-            
+
             UpdateDisplay();
             UpdateFullScreenStatus();
 
@@ -343,11 +349,11 @@ namespace PomodoroTimer
                 _notifyIcon.Text = notificationText;
             }
 
-            // Update big tooltip text
-            ShowToolTip(notificationText);
-
             // Update times for break, long break, task, meeting, lunch, and total
             UpdateTotalTimes();
+
+            // Update big tooltip text
+            ShowToolTip(notificationText);
         }
 
         private void UpdateFullScreenStatus()
@@ -383,6 +389,15 @@ namespace PomodoroTimer
             totalMeetingTimeToolStripMenuItem.Text = $"Total Meeting Time: {TimeSpan.FromSeconds(_totalMeetingTime):hh\\:mm\\:ss}";
             totalLunchTimeToolStripMenuItem.Text = $"Total Lunch Time: {TimeSpan.FromSeconds(_totalLunchTime):hh\\:mm\\:ss}";
             totalLongBreakTimeToolStripMenuItem.Text = $"Total Long Break Time: {TimeSpan.FromSeconds(_totalLongBreakTime):hh\\:mm\\:ss}";
+
+            // Calculate total work time (task + meeting)
+            int totalWorkTime = _totalTasksTime + _totalMeetingTime;
+            totalWorkTimeToolStripMenuItem.Text = $"Total Work Time: {TimeSpan.FromSeconds(totalWorkTime):hh\\:mm\\:ss}";
+
+            // Calculate total rest time (break + long break + lunch)
+            int totalRestTime = _totalBreaksTime + _totalLongBreakTime + _totalLunchTime;
+            totalRestTimeToolStripMenuItem.Text = $"Total Rest Time: {TimeSpan.FromSeconds(totalRestTime):hh\\:mm\\:ss}";
+
             totalTimeToolStripMenuItem.Text = $"Total Time: {TimeSpan.FromSeconds(_totalBreaksTime + _totalTasksTime + _totalMeetingTime):hh\\:mm\\:ss}";
         }
 
@@ -547,6 +562,36 @@ namespace PomodoroTimer
         public const int MOUSEEVENTF_LEFTDOWN = 0x02;
         public const int MOUSEEVENTF_LEFTUP = 0x04;
 
+
+        private static Point GetTeamsTrayIconPosition()
+        {
+            AutomationElement teamsIcon = GetTeamsTrayIcon();
+            if (teamsIcon != null)
+            {
+                System.Windows.Rect iconRectWin = teamsIcon.Current.BoundingRectangle;
+                Rectangle iconRect = new Rectangle((int)iconRectWin.Left, (int)iconRectWin.Top, (int)iconRectWin.Right - (int)iconRectWin.Left, (int)iconRectWin.Bottom - (int)iconRectWin.Top);
+                Point iconCenter = new Point(iconRect.Left + (iconRect.Width / 2), iconRect.Top + (iconRect.Height / 2));
+
+                return new Point(iconCenter.X, iconCenter.Y);
+            }
+            else
+            {
+                return new Point(0, 0);
+            }
+        }
+
+        private static AutomationElement GetTeamsTrayIcon()
+        {
+            AutomationElement desktop = AutomationElement.RootElement;
+            AutomationElement trayIcons = desktop.FindFirst(TreeScope.Children, new PropertyCondition(AutomationElement.ClassNameProperty, "Shell_TrayWnd"));
+            if (trayIcons != null)
+            {
+                AutomationElement teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams | Dell Technologies"));
+                return teamsIcon;
+            }
+            return null;
+        }
+
         public static void SetTeamStatus(string status)
         {
             // Check if the "MS Teams" process is running
@@ -557,38 +602,76 @@ namespace PomodoroTimer
                 return;
             }
 
-            Thread.Sleep(300);
+            Thread.Sleep(500);
+
+            Point teamIconPosition = GetTeamsTrayIconPosition();
+
+            // Could not find msteams tray icon position
+            if (teamIconPosition.X == 0)
+                return;
 
             // Right-click in Teams tray icon
-            SetCursorPos(2230, 1490);
+            SetCursorPos(teamIconPosition.X, teamIconPosition.Y);
             mouse_event(MOUSEEVENTF_RIGHTDOWN, 0, 0, 0, 0);
             mouse_event(MOUSEEVENTF_RIGHTUP, 0, 0, 0, 0);
 
             // Select My Status menu
             Thread.Sleep(1000);
-            SetCursorPos(1954, 1294);
+            Point myStatusMenuPosition = GetMyStatusMenuPosition(teamIconPosition);
+            SetCursorPos(myStatusMenuPosition.X, myStatusMenuPosition.Y);
             Thread.Sleep(1000);
 
-            if (status.Equals("Away", StringComparison.OrdinalIgnoreCase))
-            {
-                // Set as status "Away"
-                SetCursorPos(2311, 1195 + 30);
-            }
-            if (status.Equals("AwayBRB", StringComparison.OrdinalIgnoreCase))
-            {
-                // Set as status "Away - I will be right back"
-                SetCursorPos(2311, 1195);
-            }
-            else if (status.Equals("Busy", StringComparison.OrdinalIgnoreCase))
-            {
-                // Set as status "Busy"
-                SetCursorPos(2302, 1127);
-            }
+            Point statusOptionPosition = GetStatusOptionPosition(status, teamIconPosition);
+            SetCursorPos(statusOptionPosition.X, statusOptionPosition.Y);
 
             mouse_event(MOUSEEVENTF_LEFTDOWN, 0, 0, 0, 0);
             mouse_event(MOUSEEVENTF_LEFTUP, 0, 0, 0, 0);
 
-            Thread.Sleep(2000);
+            Thread.Sleep(1000);
+
+            // Place cursor in the center of screen
+            int screenWidth = Screen.PrimaryScreen.Bounds.Width;
+            int screenHeight = Screen.PrimaryScreen.Bounds.Height;
+            int centerX = screenWidth / 2;
+            int centerY = screenHeight / 2;
+            SetCursorPos(centerX, centerY);
+        }
+
+        private static Point GetMyStatusMenuPosition(Point teamIconPosition)
+        {
+            // Calculate the position of the "My Status" menu based on the team icon position
+            int myStatusMenuX = teamIconPosition.X - 205;
+            int myStatusMenuY = teamIconPosition.Y - 110;
+            return new Point(myStatusMenuX, myStatusMenuY);
+        }
+
+        private static Point GetStatusOptionPosition(string status, Point teamIconPosition)
+        {
+            int statusOptionX = teamIconPosition.X + 152;
+            int statusOptionY;
+
+            if (status.Equals("Away", StringComparison.OrdinalIgnoreCase))
+            {
+                // Set as status "Away"
+                statusOptionY = teamIconPosition.Y - 175;
+            }
+            else if (status.Equals("AwayBRB", StringComparison.OrdinalIgnoreCase))
+            {
+                // Set as status "Away - I will be right back"
+                statusOptionY = teamIconPosition.Y - 215;
+            }
+            else if (status.Equals("Busy", StringComparison.OrdinalIgnoreCase))
+            {
+                // Set as status "Busy"
+                statusOptionY = teamIconPosition.Y - 277;
+            }
+            else
+            {
+                // Default status option position (e.g., "Available")
+                statusOptionY = teamIconPosition.Y - 307;
+            }
+
+            return new Point(statusOptionX, statusOptionY);
         }
 
         #endregion
@@ -620,8 +703,17 @@ namespace PomodoroTimer
 
         private void ShowContextMenu()
         {
-            Point mousePosition = Control.MousePosition;
-            ContextMenu.Show(mousePosition);
+            // Close if required
+            if (ContextMenu.Visible)
+            {
+                ContextMenu.Hide();
+            }
+            else
+            {
+                // Open if required
+                Point mousePosition = Control.MousePosition;
+                ContextMenu.Show(mousePosition);
+            }
         }
 
         #endregion
@@ -654,7 +746,7 @@ namespace PomodoroTimer
 
         private void LoadMetrics()
         {
-            (_totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime, _) = MetricsReportManager.LoadMetricsReport(DateTime.Today);
+            (_totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime, _, _, _) = MetricsReportManager.LoadMetricsReport(DateTime.Today);
         }
 
         #endregion
@@ -702,12 +794,15 @@ namespace PomodoroTimer
             this.totalBreaksTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.totalLongBreakTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.totalLunchTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-            this.totalTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemSeparator1 = new System.Windows.Forms.ToolStripSeparator();
+            this.totalWorkTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.totalRestTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.totalTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this._timer = new System.Windows.Forms.Timer(this.components);
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.lblText = new System.Windows.Forms.Label();
+            this.toolStripMenuItem1 = new System.Windows.Forms.ToolStripSeparator();
             this.ContextMenu.SuspendLayout();
             this.SuspendLayout();
             // 
@@ -737,120 +832,136 @@ namespace PomodoroTimer
             this.totalBreaksTimeToolStripMenuItem,
             this.totalLongBreakTimeToolStripMenuItem,
             this.totalLunchTimeToolStripMenuItem,
+            this.toolStripMenuItem1,
+            this.totalWorkTimeToolStripMenuItem,
+            this.totalRestTimeToolStripMenuItem,
             this.totalTimeToolStripMenuItem,
             this.toolStripMenuItemSeparator1,
             this.exitToolStripMenuItem});
             this.ContextMenu.Name = "ContextMenu";
-            this.ContextMenu.Size = new System.Drawing.Size(514, 700);
+            this.ContextMenu.Size = new System.Drawing.Size(335, 579);
             // 
             // pauseToolStripMenuItem
             // 
             this.pauseToolStripMenuItem.Name = "pauseToolStripMenuItem";
-            this.pauseToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.pauseToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.pauseToolStripMenuItem.Text = "Pause timer (&0)";
             this.pauseToolStripMenuItem.Click += new System.EventHandler(this.pauseToolStripMenuItem_Click);
             // 
             // toolStripMenuItemSeparator2
             // 
             this.toolStripMenuItemSeparator2.Name = "toolStripMenuItemSeparator2";
-            this.toolStripMenuItemSeparator2.Size = new System.Drawing.Size(510, 6);
+            this.toolStripMenuItemSeparator2.Size = new System.Drawing.Size(331, 6);
             // 
             // goToTaskToolStripMenuItem
             // 
             this.goToTaskToolStripMenuItem.Name = "goToTaskToolStripMenuItem";
-            this.goToTaskToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.goToTaskToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.goToTaskToolStripMenuItem.Text = "Start Task (&1)";
             this.goToTaskToolStripMenuItem.Click += new System.EventHandler(this.goToTaskToolStripMenuItem_Click);
             // 
             // goToMeetingToolStripMenuItem
             // 
             this.goToMeetingToolStripMenuItem.Name = "goToMeetingToolStripMenuItem";
-            this.goToMeetingToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.goToMeetingToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.goToMeetingToolStripMenuItem.Text = "Start Meeting (&2)";
             this.goToMeetingToolStripMenuItem.Click += new System.EventHandler(this.goToMeetingToolStripMenuItem_Click);
             // 
             // goToBreakToolStripMenuItem
             // 
             this.goToBreakToolStripMenuItem.Name = "goToBreakToolStripMenuItem";
-            this.goToBreakToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.goToBreakToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.goToBreakToolStripMenuItem.Text = "Start Break (&3)";
             this.goToBreakToolStripMenuItem.Click += new System.EventHandler(this.goToBreakToolStripMenuItem_Click);
             // 
             // goToLongBreakToolStripMenuItem
             // 
             this.goToLongBreakToolStripMenuItem.Name = "goToLongBreakToolStripMenuItem";
-            this.goToLongBreakToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.goToLongBreakToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.goToLongBreakToolStripMenuItem.Text = "Start Long Break (&4)";
             this.goToLongBreakToolStripMenuItem.Click += new System.EventHandler(this.goToLongBreakToolStripMenuItem_Click);
             // 
             // goToLunchToolStripMenuItem
             // 
             this.goToLunchToolStripMenuItem.Name = "goToLunchToolStripMenuItem";
-            this.goToLunchToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.goToLunchToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.goToLunchToolStripMenuItem.Text = "Start Lunch (&5)";
             this.goToLunchToolStripMenuItem.Click += new System.EventHandler(this.goToLunchToolStripMenuItem_Click);
             // 
             // toolStripMenuItemSeparator3
             // 
             this.toolStripMenuItemSeparator3.Name = "toolStripMenuItemSeparator3";
-            this.toolStripMenuItemSeparator3.Size = new System.Drawing.Size(510, 6);
+            this.toolStripMenuItemSeparator3.Size = new System.Drawing.Size(331, 6);
             // 
             // configureToolStripMenuItem
             // 
             this.configureToolStripMenuItem.Name = "configureToolStripMenuItem";
-            this.configureToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.configureToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.configureToolStripMenuItem.Text = "Configure";
             this.configureToolStripMenuItem.Click += new System.EventHandler(this.configureToolStripMenuItem_Click);
             // 
             // toolStripMenuItemSeparator4
             // 
             this.toolStripMenuItemSeparator4.Name = "toolStripMenuItemSeparator4";
-            this.toolStripMenuItemSeparator4.Size = new System.Drawing.Size(510, 6);
+            this.toolStripMenuItemSeparator4.Size = new System.Drawing.Size(331, 6);
             // 
             // totalTasksTimeToolStripMenuItem
             // 
             this.totalTasksTimeToolStripMenuItem.Name = "totalTasksTimeToolStripMenuItem";
-            this.totalTasksTimeToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.totalTasksTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.totalTasksTimeToolStripMenuItem.Text = "Total Tasks Time: 00:00:00";
             // 
             // totalMeetingTimeToolStripMenuItem
             // 
             this.totalMeetingTimeToolStripMenuItem.Name = "totalMeetingTimeToolStripMenuItem";
-            this.totalMeetingTimeToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.totalMeetingTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.totalMeetingTimeToolStripMenuItem.Text = "Total Meeting Time: 00:00:00";
             // 
             // totalBreaksTimeToolStripMenuItem
             // 
             this.totalBreaksTimeToolStripMenuItem.Name = "totalBreaksTimeToolStripMenuItem";
-            this.totalBreaksTimeToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.totalBreaksTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.totalBreaksTimeToolStripMenuItem.Text = "Total Breaks Time: 00:00:00";
             // 
             // totalLongBreakTimeToolStripMenuItem
             // 
             this.totalLongBreakTimeToolStripMenuItem.Name = "totalLongBreakTimeToolStripMenuItem";
-            this.totalLongBreakTimeToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.totalLongBreakTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.totalLongBreakTimeToolStripMenuItem.Text = "Total Long Break Time: 00:00:00";
             // 
             // totalLunchTimeToolStripMenuItem
             // 
             this.totalLunchTimeToolStripMenuItem.Name = "totalLunchTimeToolStripMenuItem";
-            this.totalLunchTimeToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
-            // 
-            // totalTimeToolStripMenuItem
-            // 
-            this.totalTimeToolStripMenuItem.Name = "totalTimeToolStripMenuItem";
-            this.totalTimeToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
-            this.totalTimeToolStripMenuItem.Text = "Total Time: 00:00:00";
+            this.totalLunchTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
+            this.totalLunchTimeToolStripMenuItem.Text = "Total Lunch Time: 00:00:00";
             // 
             // toolStripMenuItemSeparator1
             // 
             this.toolStripMenuItemSeparator1.Name = "toolStripMenuItemSeparator1";
-            this.toolStripMenuItemSeparator1.Size = new System.Drawing.Size(510, 6);
+            this.toolStripMenuItemSeparator1.Size = new System.Drawing.Size(331, 6);
+            // 
+            // totalWorkTimeToolStripMenuItem
+            // 
+            this.totalWorkTimeToolStripMenuItem.Name = "totalWorkTimeToolStripMenuItem";
+            this.totalWorkTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
+            this.totalWorkTimeToolStripMenuItem.Text = "Total Work Time: 00:00:00";
+            // 
+            // totalRestTimeToolStripMenuItem
+            // 
+            this.totalRestTimeToolStripMenuItem.Name = "totalRestTimeToolStripMenuItem";
+            this.totalRestTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
+            this.totalRestTimeToolStripMenuItem.Text = "Total Rest Time: 00:00:00";
+            // 
+            // totalTimeToolStripMenuItem
+            // 
+            this.totalTimeToolStripMenuItem.Name = "totalTimeToolStripMenuItem";
+            this.totalTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
+            this.totalTimeToolStripMenuItem.Text = "Total Time: 00:00:00";
             // 
             // exitToolStripMenuItem
             // 
             this.exitToolStripMenuItem.Name = "exitToolStripMenuItem";
-            this.exitToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.exitToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.exitToolStripMenuItem.Text = "Exit";
             this.exitToolStripMenuItem.Click += new System.EventHandler(this.exitToolStripMenuItem_Click);
             // 
@@ -868,6 +979,11 @@ namespace PomodoroTimer
             this.lblText.Size = new System.Drawing.Size(283, 53);
             this.lblText.TabIndex = 1;
             this.lblText.Text = "Loading...";
+            // 
+            // toolStripMenuItem1
+            // 
+            this.toolStripMenuItem1.Name = "toolStripMenuItem1";
+            this.toolStripMenuItem1.Size = new System.Drawing.Size(331, 6);
             // 
             // MainForm
             // 
