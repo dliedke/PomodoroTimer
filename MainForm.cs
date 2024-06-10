@@ -146,11 +146,11 @@ namespace PomodoroTimer
             _timer.Tick += Timer_Tick;
             _remainingTime = _taskDuration;
             _currentStatus = TimerStatus.Task;
-            StartTimer();
+            
             UpdateDisplay();
             UpdateFullScreenStatus();
 
-
+            StartTimer();
         }
 
         private void StartTimer()
@@ -167,9 +167,11 @@ namespace PomodoroTimer
 
         private void Timer_Tick(object sender, EventArgs e)
         {
+            // Hide this loading window
             if (WindowState != FormWindowState.Minimized)
             {
                 WindowState = FormWindowState.Minimized;
+                this.Hide();
             }
 
             // Decrement the remaining time if not in meeting status
@@ -227,7 +229,6 @@ namespace PomodoroTimer
                 UpdateTotalTimes();
             }
         }
-
 
         public void SwitchToTask()
         {
@@ -592,7 +593,8 @@ namespace PomodoroTimer
 
         #endregion
 
-        #region Global Handlers
+        #region Global Key Handlers
+
         [DllImport("user32.dll")]
         private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
 
@@ -623,6 +625,7 @@ namespace PomodoroTimer
         }
 
         #endregion
+
         #region Load/Save settings
 
         private void LoadSettings()
@@ -662,7 +665,7 @@ namespace PomodoroTimer
         {
             base.OnFormClosing(e);
 
-            // Unregister F12 hotkey
+            // Unregister F12 hotkey global handler
             UnregisterHotKey(this.Handle, HOTKEY_ID_F12);
         }
 
