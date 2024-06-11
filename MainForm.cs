@@ -582,11 +582,32 @@ namespace PomodoroTimer
 
         private static AutomationElement GetTeamsTrayIcon()
         {
+            // Note: name for automation elements can be found with 
+            // Inspect.exe tool from Windows SDK
+            // Sample path: C:\Program Files (x86)\Windows Kits\10\bin\10.0.22621.0\x64\inspect.exe
+
+            // Get desktop
             AutomationElement desktop = AutomationElement.RootElement;
+
+            // Get tray icons
             AutomationElement trayIcons = desktop.FindFirst(TreeScope.Children, new PropertyCondition(AutomationElement.ClassNameProperty, "Shell_TrayWnd"));
+
             if (trayIcons != null)
             {
-                AutomationElement teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams | Dell Technologies"));
+                // Try to find the Teams icon in the tray with name "Microsoft Teams"
+                AutomationElement teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams"));
+
+                if (teamsIcon == null)
+                {
+                    // Try to find the Teams icon in the tray with name "Microsoft Teams | Dell Technologies"
+                    teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams | Dell Technologies"));
+                }
+                if (teamsIcon == null)
+                {
+                    // Try to find the Teams icon in the tray with name "Microsoft Teams Microsoft Teams | Dell Technologies"
+                    teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams Microsoft Teams | Dell Technologies"));
+                }
+                
                 return teamsIcon;
             }
             return null;
