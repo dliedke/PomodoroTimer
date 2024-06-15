@@ -67,6 +67,7 @@ namespace PomodoroTimer
         private ToolStripMenuItem totalWorkTimeToolStripMenuItem;
         private ToolStripMenuItem totalRestTimeToolStripMenuItem;
         private ToolStripMenuItem totalTimeToolStripMenuItem;
+        private ToolStripMenuItem totalBreaksCountToolStripMenuItem;
         private ToolStripSeparator toolStripMenuItemSeparator2;
 
         private ToolStripMenuItem exitToolStripMenuItem;
@@ -79,10 +80,12 @@ namespace PomodoroTimer
         private int _totalMeetingTime;
         private int _totalLunchTime;
         private int _totalLongBreakTime;
+        private int _totalBreaksCount;
         private Label lblText;
         private int _totalTasksTime;
         private System.Drawing.Size _originalToolTipFormSize;
 
+        private TimerStatus _previousStatus = TimerStatus.Task;
         private int _remainingTime;
         private ToolStripSeparator toolStripMenuItem1;
 
@@ -212,6 +215,16 @@ namespace PomodoroTimer
                     _totalLongBreakTime++;
                     break;
             }
+
+
+            // Increment _totalBreaksCount when switching from a break, lunch break, or long break to a different status
+            if ((_previousStatus == TimerStatus.Break || _previousStatus == TimerStatus.Lunch || _previousStatus == TimerStatus.LongBreak) &&
+                (_currentStatus != TimerStatus.Break && _currentStatus != TimerStatus.Lunch && _currentStatus != TimerStatus.LongBreak))
+            {
+                _totalBreaksCount++;
+            }
+
+            _previousStatus = _currentStatus;
 
             // Play a melody if the remaining time is 10 seconds
             if (_remainingTime == 10 && _currentStatus != TimerStatus.Meeting)
@@ -398,7 +411,9 @@ namespace PomodoroTimer
             int totalRestTime = _totalBreaksTime + _totalLongBreakTime + _totalLunchTime;
             totalRestTimeToolStripMenuItem.Text = $"Total Rest Time: {TimeSpan.FromSeconds(totalRestTime):hh\\:mm\\:ss}";
 
-            totalTimeToolStripMenuItem.Text = $"Total Time: {TimeSpan.FromSeconds(_totalBreaksTime + _totalTasksTime + _totalMeetingTime):hh\\:mm\\:ss}";
+            totalTimeToolStripMenuItem.Text = $"Total Time Today: {TimeSpan.FromSeconds(_totalBreaksTime + _totalTasksTime + _totalMeetingTime):hh\\:mm\\:ss}";
+
+            totalBreaksCountToolStripMenuItem.Text = $"Total Breaks: {_totalBreaksCount}";
         }
 
         #endregion
@@ -607,7 +622,7 @@ namespace PomodoroTimer
                     // Try to find the Teams icon in the tray with name "Microsoft Teams Microsoft Teams | Dell Technologies"
                     teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams Microsoft Teams | Dell Technologies"));
                 }
-                
+
                 return teamsIcon;
             }
             return null;
@@ -762,12 +777,12 @@ namespace PomodoroTimer
 
         private void SaveMetrics()
         {
-            MetricsReportManager.SaveMetricsReport(DateTime.Today, _totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime);
+            MetricsReportManager.SaveMetricsReport(DateTime.Today, _totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime, _totalLunchTime, _totalBreaksCount);
         }
 
         private void LoadMetrics()
         {
-            (_totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime, _, _, _) = MetricsReportManager.LoadMetricsReport(DateTime.Today);
+            (_totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime, _totalLunchTime, _totalBreaksCount, _) = MetricsReportManager.LoadMetricsReport(DateTime.Today);
         }
 
         #endregion
@@ -819,6 +834,7 @@ namespace PomodoroTimer
             this.totalWorkTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.totalRestTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.totalTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.totalBreaksCountToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.exitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this._timer = new System.Windows.Forms.Timer(this.components);
             this.toolTip = new System.Windows.Forms.ToolTip(this.components);
@@ -857,6 +873,7 @@ namespace PomodoroTimer
             this.totalWorkTimeToolStripMenuItem,
             this.totalRestTimeToolStripMenuItem,
             this.totalTimeToolStripMenuItem,
+            this.totalBreaksCountToolStripMenuItem,
             this.toolStripMenuItemSeparator1,
             this.exitToolStripMenuItem});
             this.ContextMenu.Name = "ContextMenu";
@@ -978,6 +995,12 @@ namespace PomodoroTimer
             this.totalTimeToolStripMenuItem.Name = "totalTimeToolStripMenuItem";
             this.totalTimeToolStripMenuItem.Size = new System.Drawing.Size(334, 32);
             this.totalTimeToolStripMenuItem.Text = "Total Time: 00:00:00";
+            //
+            // totalBreaksCountToolStripMenuItem
+            //
+            this.totalBreaksCountToolStripMenuItem.Name = "totalBreaksCountToolStripMenuItem";
+            this.totalBreaksCountToolStripMenuItem.Size = new System.Drawing.Size(311, 32);
+            this.totalBreaksCountToolStripMenuItem.Text = "Total Breaks: 0";
             // 
             // exitToolStripMenuItem
             // 

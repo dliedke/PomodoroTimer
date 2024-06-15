@@ -10,6 +10,7 @@
  *           
  * *******************************************************************************************************************/
 
+using System;
 using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
@@ -33,12 +34,29 @@ namespace PomodoroTimer
             this.MouseMove += ToolTipForm_MouseMove;
             this.MouseUp += ToolTipForm_MouseUp;
 
-            // Load last location
-            if (Properties.Settings.Default.ToolTipFormLocation != null &&
-                Properties.Settings.Default.ToolTipFormLocation.X > 0 &&
-                Properties.Settings.Default.ToolTipFormLocation.Y > 0)
+            // Load last location if it is within the screen bounds
+            if (Properties.Settings.Default.ToolTipFormLocation != null)
             {
-                this.Location = Properties.Settings.Default.ToolTipFormLocation;
+                // Get saved location
+                Point savedLocation = Properties.Settings.Default.ToolTipFormLocation;
+                Rectangle screenBounds = Screen.FromPoint(savedLocation).Bounds;
+
+                // If the location is within the screen bounds, set it and save new postion
+                if (screenBounds.Contains(savedLocation))
+                {
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = savedLocation;
+                }
+                // If the location is not within the screen bounds,
+                // set it to the center of the screen and save new postion
+                else
+                {
+                    this.Location = new Point(
+                        Screen.PrimaryScreen.Bounds.Width / 2 - this.Width / 2,
+                        Screen.PrimaryScreen.Bounds.Height / 2 - this.Height / 2);
+                    Properties.Settings.Default.ToolTipFormLocation = this.Location;
+                    Properties.Settings.Default.Save();
+                }
             }
         }
 
