@@ -76,13 +76,13 @@ namespace PomodoroTimer
         bool _hideToolTipTimer = false;
         private ToolTipForm _toolTipForm = new ToolTipForm();
 
-        private int _totalBreaksTime;
+        private int _totalBreakTime;
         private int _totalMeetingTime;
         private int _totalLunchTime;
         private int _totalLongBreakTime;
         private int _totalBreaksCount;
         private Label lblText;
-        private int _totalTasksTime;
+        private int _totalTaskTime;
         private System.Drawing.Size _originalToolTipFormSize;
 
         private TimerStatus _previousStatus = TimerStatus.Task;
@@ -200,10 +200,10 @@ namespace PomodoroTimer
             switch (_currentStatus)
             {
                 case TimerStatus.Task:
-                    _totalTasksTime++;
+                    _totalTaskTime++;
                     break;
                 case TimerStatus.Break:
-                    _totalBreaksTime++;
+                    _totalBreakTime++;
                     break;
                 case TimerStatus.Meeting:
                     _totalMeetingTime++;
@@ -397,23 +397,26 @@ namespace PomodoroTimer
         private void UpdateTotalTimes()
         {
             // Update Break/Task/Meeting/Total times
-            totalBreaksTimeToolStripMenuItem.Text = $"Total Break Time: {TimeSpan.FromSeconds(_totalBreaksTime):hh\\:mm\\:ss}";
-            totalTasksTimeToolStripMenuItem.Text = $"Total Task Time: {TimeSpan.FromSeconds(_totalTasksTime):hh\\:mm\\:ss}";
+            totalBreaksTimeToolStripMenuItem.Text = $"Total Break Time: {TimeSpan.FromSeconds(_totalBreakTime):hh\\:mm\\:ss}";
+            totalTasksTimeToolStripMenuItem.Text = $"Total Task Time: {TimeSpan.FromSeconds(_totalTaskTime):hh\\:mm\\:ss}";
             totalMeetingTimeToolStripMenuItem.Text = $"Total Meeting Time: {TimeSpan.FromSeconds(_totalMeetingTime):hh\\:mm\\:ss}";
             totalLunchTimeToolStripMenuItem.Text = $"Total Lunch Time: {TimeSpan.FromSeconds(_totalLunchTime):hh\\:mm\\:ss}";
             totalLongBreakTimeToolStripMenuItem.Text = $"Total Long Break Time: {TimeSpan.FromSeconds(_totalLongBreakTime):hh\\:mm\\:ss}";
 
             // Calculate total work time (task + meeting)
-            int totalWorkTime = _totalTasksTime + _totalMeetingTime;
+            int totalWorkTime = _totalTaskTime + _totalMeetingTime;
             totalWorkTimeToolStripMenuItem.Text = $"Total Work Time: {TimeSpan.FromSeconds(totalWorkTime):hh\\:mm\\:ss}";
 
             // Calculate total rest time (break + long break + lunch)
-            int totalRestTime = _totalBreaksTime + _totalLongBreakTime + _totalLunchTime;
+            int totalRestTime = _totalBreakTime + _totalLongBreakTime + _totalLunchTime;
             totalRestTimeToolStripMenuItem.Text = $"Total Rest Time: {TimeSpan.FromSeconds(totalRestTime):hh\\:mm\\:ss}";
 
-            totalTimeToolStripMenuItem.Text = $"Total Time Today: {TimeSpan.FromSeconds(_totalBreaksTime + _totalTasksTime + _totalMeetingTime):hh\\:mm\\:ss}";
+            // Calculate total time today (work + rest)
+            int totalTime = totalWorkTime + totalRestTime;
+            totalTimeToolStripMenuItem.Text = $"Total Time Today: {TimeSpan.FromSeconds(totalTime):hh\\:mm\\:ss}";
 
-            totalBreaksCountToolStripMenuItem.Text = $"Total Breaks: {_totalBreaksCount}";
+            // Update total breaks count
+            totalBreaksCountToolStripMenuItem.Text = $"Total Breaks Today: {_totalBreaksCount}";
         }
 
         #endregion
@@ -777,12 +780,12 @@ namespace PomodoroTimer
 
         private void SaveMetrics()
         {
-            MetricsReportManager.SaveMetricsReport(DateTime.Today, _totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime, _totalLunchTime, _totalBreaksCount);
+            MetricsReportManager.SaveMetricsReport(DateTime.Today, _totalTaskTime, _totalMeetingTime, _totalBreakTime, _totalLongBreakTime, _totalLunchTime, _totalBreaksCount);
         }
 
         private void LoadMetrics()
         {
-            (_totalTasksTime, _totalMeetingTime, _totalBreaksTime, _totalLunchTime, _totalLongBreakTime, _totalLunchTime, _totalBreaksCount, _) = MetricsReportManager.LoadMetricsReport(DateTime.Today);
+            (_totalTaskTime, _totalMeetingTime, _totalBreakTime, _totalLongBreakTime, _totalLunchTime, _totalBreaksCount, _) = MetricsReportManager.LoadMetricsReport(DateTime.Today);
         }
 
         #endregion
