@@ -1,18 +1,43 @@
 # Pomodoro Timer
 Configurable Pomodoro Timer to track
-your work/break/long break/meetings/lunch and improve mental heath:
+your work/break/long break/meetings/lunch time to
+improve mental heath and productivity:
 
 - Configurable task time
+
 - Configurable break time
-- Break time as full screen or regular small timer
+ 
+- Break time showing as full screen or regular small timer
+
 - Meeting time
+
 - Endless Long break time full screen timer
+
 - Endless Lunch break full screen timer
+
 - Global shortcut ALT+F12 to open/close menu
+
 - Number shortcuts for quickly changing timer type
-- Real time statistics for total time, total task time, total break time, total long break time, total meeting time, total launch time, total work, total rest, total time
+
+- Real time statistics for:
+	- Total task time
+	- Total break time
+	- Total long break time
+	- Total meeting time
+	- Total launch time
+	- Total work
+	- Total rest
+	- Total number of breaks
+	- Total time
+	
 - Keep statistics during different application sessions
-- Report per day saved in desktop as csv file 
+
+- Report per day saved in desktop as csv file for history
+
 - Simple sounds when changing between break/task 10s before the change
+
 - ESC key to exit full screen timers
+
 - Automatic Microsoft Teams status update
+
+- Timer as tooltip for tray icon or small timer window that can be moved on screen. (right click in tray icon to alternate mode)
