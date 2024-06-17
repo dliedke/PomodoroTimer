@@ -25,7 +25,7 @@ namespace PomodoroTimer.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("2700")]
+        [global::System.Configuration.DefaultSettingValueAttribute("3000")]
         public string TaskDuration {
             get {
                 return ((string)(this["TaskDuration"]));
@@ -37,7 +37,7 @@ namespace PomodoroTimer.Properties {
         
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("420")]
+        [global::System.Configuration.DefaultSettingValueAttribute("600")]
         public string BreakDuration {
             get {
                 return ((string)(this["BreakDuration"]));
