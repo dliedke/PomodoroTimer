@@ -32,7 +32,7 @@ improve mental heath and productivity:
 	
 - Keep statistics during different application sessions
 
-- Report per day saved in desktop as csv file for history
+- Report per day saved in desktop as XLSX file for history
 
 - Simple sounds when changing between break/task 10s before the change
 
