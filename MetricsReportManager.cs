@@ -133,7 +133,7 @@ namespace PomodoroTimer
                         if (values.Length == 19)
                         {
                             worksheet.Cells[rowIndex, 1].Value = values[0];
-                            worksheet.Cells[rowIndex, 2].Value = values[1];
+                            worksheet.Cells[rowIndex, 2].Value = DateTime.Parse(values[1]).ToString("yyyy-MM-dd");
                             worksheet.Cells[rowIndex, 3].Value = values[2];
                             worksheet.Cells[rowIndex, 4].Value = values[3];
                             worksheet.Cells[rowIndex, 5].Value = values[4];
@@ -172,6 +172,11 @@ namespace PomodoroTimer
         {
             try
             {
+                if (!File.Exists(filePath))
+                {
+                    return false;
+                }
+
                 using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.None))
                 {
                     stream.Close();
