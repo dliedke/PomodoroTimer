@@ -41,3 +41,5 @@ improve mental heath and productivity:
 - Automatic Microsoft Teams status update
 
 - Timer as tooltip for tray icon or small timer window that can be moved on screen. (right click in tray icon to alternate mode)
+
+- Dual monitor support
