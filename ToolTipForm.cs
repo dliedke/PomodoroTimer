@@ -14,15 +14,21 @@ using System;
 using System.Linq;
 using System.Drawing;
 using System.Windows.Forms;
+using System.Runtime.InteropServices;
 
 namespace PomodoroTimer
 {
     public partial class ToolTipForm : Form
     {
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        public static extern bool SetForegroundWindow(IntPtr hWnd);
+
         #region Class Variables / Constructor
 
-        private bool isDragging = false;
-        private Point lastMousePosition;
+        private bool _isDragging = false;
+        private Point _lastMousePosition;
+        private bool _isFullScreen = false;
 
         public ToolTipForm()
         {
@@ -66,39 +72,106 @@ namespace PomodoroTimer
 
         public void SetToolTip(string text)
         {
+            // Update the label text
             lblText.Text = text;
 
-            if (this.WindowState == FormWindowState.Maximized)
+            // Ensure the label resizes to fit the text
+            lblText.AutoSize = true;
+
+            if (_isFullScreen)
             {
-                this.Activate();
-            }
-        }
+                // Measure the text size after updating the text
+                lblText.Update();
+                SizeF textSize;
+                using (Graphics g = lblText.CreateGraphics())
+                {
+                    textSize = g.MeasureString(lblText.Text, lblText.Font);
+                }
 
-        public void SetFullScreen(bool isFullScreen, PomodoroTimer.TimerStatus timerStatus)
-        {
-            SetToolTipColor(timerStatus);
+                // Determine the screen where the tooltip form is displayed
+                Screen targetScreen = Screen.FromControl(this);
 
-            if (isFullScreen)
-            {
-                // Allow the taskbar to be displayed
-                this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
-                this.WindowState = FormWindowState.Maximized;
-                this.Cursor = Cursors.Default;
-
-                // Increase lblText font size to 130
-                lblText.Font = new Font(lblText.Font.Name, 130, lblText.Font.Style, lblText.Font.Unit);
-
-                // Put label in middle of the screen considering DPI and label size
-                int screenWidth = Screen.PrimaryScreen.WorkingArea.Width;
-                int screenHeight = Screen.PrimaryScreen.WorkingArea.Height;
-                int labelWidth = lblText.Width;
-                int labelHeight = lblText.Height;
+                // Put label in the middle of the screen considering DPI and label size
+                int screenWidth = targetScreen.WorkingArea.Width;
+                int screenHeight = targetScreen.WorkingArea.Height;
+                int labelWidth = (int)textSize.Width;
+                int labelHeight = (int)textSize.Height;
                 int labelX = (screenWidth - labelWidth) / 2;
                 int labelY = (screenHeight - labelHeight) / 2;
                 lblText.Location = new Point(labelX, labelY);
 
-                // Add exit and +5 buttons if required
-                AddButtons(screenWidth, screenHeight, timerStatus == TimerStatus.Break);
+                // Only for primary screen 
+                if (targetScreen.Primary)
+                {
+                    // Focus window with Win32 API
+                    SetForegroundWindow(this.Handle);
+                }
+            }
+        }
+
+        public void SetFullScreen(bool isFullScreen, TimerStatus timerStatus, bool secondMonitor = false)
+        {
+            _isFullScreen = isFullScreen;
+
+            SetToolTipColor(timerStatus);
+
+            if (isFullScreen)
+            {
+                // If secondMonitor is true, move this window to the other monitor
+                if (secondMonitor && Screen.AllScreens.Length > 1)
+                {
+                    // Get the screen that is secondary
+                    Screen secondScreen = Screen.AllScreens.FirstOrDefault(s => !s.Primary);
+                    if (secondScreen != null)
+                    {
+                        this.StartPosition = FormStartPosition.Manual;
+                        this.Location = new Point(
+                            secondScreen.Bounds.Left + secondScreen.Bounds.Width / 2 - this.Width / 2,
+                            secondScreen.Bounds.Top + secondScreen.Bounds.Height / 2 - this.Height / 2);
+                        this.WindowState = FormWindowState.Normal; // Important to reset the state before maximizing
+                        this.WindowState = FormWindowState.Maximized;
+                    }
+                }
+                else
+                {
+                    this.StartPosition = FormStartPosition.CenterScreen;
+                    this.WindowState = FormWindowState.Normal; // Important to reset the state before maximizing
+                    this.WindowState = FormWindowState.Maximized;
+                }
+
+                // Allow the taskbar to be displayed
+                this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
+                this.Cursor = Cursors.Default;
+
+                // Increase lblText font size to 110
+                lblText.Font = new Font(lblText.Font.Name, 110, lblText.Font.Style, lblText.Font.Unit);
+
+                // Ensure the label resizes to fit the text
+                lblText.AutoSize = true;
+
+                // Update the label size and position after setting the new font
+                lblText.Update();
+                SizeF textSize;
+                using (Graphics g = lblText.CreateGraphics())
+                {
+                    textSize = g.MeasureString(lblText.Text, lblText.Font);
+                }
+
+                // Put label in the middle of the screen considering DPI and label size
+                Screen targetScreen = secondMonitor && Screen.AllScreens.Length > 1 ? Screen.AllScreens.FirstOrDefault(s => !s.Primary) : Screen.PrimaryScreen;
+                if (targetScreen != null)
+                {
+                    int screenWidth = targetScreen.WorkingArea.Width;
+                    int screenHeight = targetScreen.WorkingArea.Height;
+                    int labelWidth = (int)textSize.Width;
+                    int labelHeight = (int)textSize.Height;
+                    int labelX = (screenWidth - labelWidth) / 2;
+                    int labelY = (screenHeight - labelHeight) / 2;
+                    lblText.Location = new Point(labelX, labelY);
+
+                    // Add exit and +5 buttons if required
+                    AddButtons(screenWidth, screenHeight, timerStatus == TimerStatus.Break);
+                }
             }
             else
             {
@@ -127,7 +200,12 @@ namespace PomodoroTimer
                     this.Location = Properties.Settings.Default.ToolTipFormLocation;
                 }
             }
+
+            // Ensure the form is brought to the front
+            this.BringToFront();
+            this.Show();
         }
+
 
         private void SetToolTipColor(TimerStatus timerStatus)
         {
@@ -233,24 +311,24 @@ namespace PomodoroTimer
         {
             if (e.Button == MouseButtons.Left)
             {
-                isDragging = true;
-                lastMousePosition = e.Location;
+                _isDragging = true;
+                _lastMousePosition = e.Location;
             }
         }
 
         private void lblText_MouseMove(object sender, MouseEventArgs e)
         {
-            if (isDragging)
+            if (_isDragging)
             {
                 this.Location = new Point(
-                    this.Location.X + e.X - lastMousePosition.X,
-                    this.Location.Y + e.Y - lastMousePosition.Y);
+                    this.Location.X + e.X - _lastMousePosition.X,
+                    this.Location.Y + e.Y - _lastMousePosition.Y);
             }
         }
 
         private void lblText_MouseUp(object sender, MouseEventArgs e)
         {
-            isDragging = false;
+            _isDragging = false;
 
             // Save new location
             Properties.Settings.Default.ToolTipFormLocation = this.Location;
@@ -261,24 +339,24 @@ namespace PomodoroTimer
         {
             if (e.Button == MouseButtons.Left)
             {
-                isDragging = true;
-                lastMousePosition = e.Location;
+                _isDragging = true;
+                _lastMousePosition = e.Location;
             }
         }
 
         private void ToolTipForm_MouseMove(object sender, MouseEventArgs e)
         {
-            if (isDragging)
+            if (_isDragging)
             {
                 this.Location = new Point(
-                    this.Location.X + e.X - lastMousePosition.X,
-                    this.Location.Y + e.Y - lastMousePosition.Y);
+                    this.Location.X + e.X - _lastMousePosition.X,
+                    this.Location.Y + e.Y - _lastMousePosition.Y);
             }
         }
 
         private void ToolTipForm_MouseUp(object sender, MouseEventArgs e)
         {
-            isDragging = false;
+            _isDragging = false;
 
             // Save new location
             Properties.Settings.Default.ToolTipFormLocation = this.Location;
@@ -295,7 +373,7 @@ namespace PomodoroTimer
             if (e.KeyCode == Keys.Escape)
             {
                 // If full screen and esc key, click in the exit button
-                if (this.WindowState == FormWindowState.Maximized)
+                if (_isFullScreen)
                 {
                     Button exitButton = this.Controls.OfType<Button>().FirstOrDefault(b => b.Text == "Exit");
                     if (exitButton != null)

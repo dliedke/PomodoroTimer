@@ -74,7 +74,8 @@ namespace PomodoroTimer
 
         private ToolTip toolTip;
         bool _hideToolTipTimer = false;
-        private ToolTipForm _toolTipForm = new ToolTipForm();
+        private ToolTipForm _toolTipForm1 = new ToolTipForm();
+        private ToolTipForm _toolTipForm2 = new ToolTipForm();
 
         private int _totalBreakTime;
         private int _totalMeetingTime;
@@ -108,21 +109,21 @@ namespace PomodoroTimer
         {
             InitializeComponent();
 
-            _originalToolTipFormSize = _toolTipForm.Size;
+            _originalToolTipFormSize = _toolTipForm1.Size;
 
             // If no location is set, put _toolTipForm in center of screen
             if (Properties.Settings.Default.ToolTipFormLocation == null ||
                 (Properties.Settings.Default.ToolTipFormLocation.X == 0 &&
                  Properties.Settings.Default.ToolTipFormLocation.Y == 0))
             {
-                _toolTipForm.StartPosition = FormStartPosition.Manual;
-                _toolTipForm.Location = new System.Drawing.Point(
-                    Screen.PrimaryScreen.Bounds.Width / 2 - _toolTipForm.Width / 2,
-                    Screen.PrimaryScreen.Bounds.Height / 2 - _toolTipForm.Height / 2);
+                _toolTipForm1.StartPosition = FormStartPosition.Manual;
+                _toolTipForm1.Location = new System.Drawing.Point(
+                    Screen.PrimaryScreen.Bounds.Width / 2 - _toolTipForm1.Width / 2,
+                    Screen.PrimaryScreen.Bounds.Height / 2 - _toolTipForm1.Height / 2);
             }
             else
             {
-                _toolTipForm.Location = Properties.Settings.Default.ToolTipFormLocation;
+                _toolTipForm1.Location = Properties.Settings.Default.ToolTipFormLocation;
             }
 
             LoadSettings();
@@ -330,19 +331,19 @@ namespace PomodoroTimer
                 time = $"{hours:00}:{minutes:00}:{seconds:00}";
 
                 // Increase _toolTipForm.Size by 13.5%
-                _toolTipForm.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.35), _originalToolTipFormSize.Height);
+                _toolTipForm1.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.35), _originalToolTipFormSize.Height);
             }
             else if (hours > 0)
             {
                 time = $"{hours:00}:{minutes:00}:{seconds:00}";
 
                 // Increase _toolTipForm.Size by 12%
-                _toolTipForm.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.2), _originalToolTipFormSize.Height);
+                _toolTipForm1.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.2), _originalToolTipFormSize.Height);
             }
             else
             {
                 time = $"{minutes:00}:{seconds:00}";
-                _toolTipForm.Size = _originalToolTipFormSize;
+                _toolTipForm1.Size = _originalToolTipFormSize;
             }
 
             // Get task, break, meeting, or lunch string
@@ -386,11 +387,14 @@ namespace PomodoroTimer
             if ((_currentStatus == TimerStatus.Break && Properties.Settings.Default.BreakFullScreen) ||
                 (_currentStatus == TimerStatus.Lunch || _currentStatus == TimerStatus.LongBreak))
             {
-                _toolTipForm.SetFullScreen(true, _currentStatus);
+                _toolTipForm1.SetFullScreen(true, _currentStatus);
+                _toolTipForm2.SetFullScreen(true, _currentStatus, secondMonitor: true);
             }
             else
             {
-                _toolTipForm.SetFullScreen(false, _currentStatus);
+                _toolTipForm1.SetFullScreen(false, _currentStatus);
+                _toolTipForm2.SetFullScreen(false, _currentStatus);
+                _toolTipForm2.Visible = false;
             }
         }
 
@@ -454,15 +458,20 @@ namespace PomodoroTimer
 
         private void ShowToolTip(string message)
         {
-            _toolTipForm.SetToolTip(message);
+            _toolTipForm1.SetToolTip(message);
+
+            if (_toolTipForm2.Visible)
+            {
+                _toolTipForm2.SetToolTip(message);
+            }
 
             if (!_hideToolTipTimer)
             {
-                _toolTipForm.Show();
+                _toolTipForm1.Show();
             }
             else
             {
-                _toolTipForm.Hide();
+                _toolTipForm1.Hide();
             }
         }
 
