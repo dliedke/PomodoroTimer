@@ -29,6 +29,8 @@ namespace PomodoroTimer
         private bool _isDragging = false;
         private Point _lastMousePosition;
         private bool _isFullScreen = false;
+        private Screen _currentScreen;
+        private Point _originalPosition;
 
         public ToolTipForm()
         {
@@ -45,25 +47,35 @@ namespace PomodoroTimer
             {
                 // Get saved location
                 Point savedLocation = Properties.Settings.Default.ToolTipFormLocation;
-                Rectangle screenBounds = Screen.FromPoint(savedLocation).Bounds;
+                _currentScreen = Screen.FromPoint(savedLocation);
+                Rectangle screenBounds = _currentScreen.Bounds;
 
-                // If the location is within the screen bounds, set it and save new postion
+                // If the location is within the screen bounds, set it and save new position
                 if (screenBounds.Contains(savedLocation))
                 {
                     this.StartPosition = FormStartPosition.Manual;
                     this.Location = savedLocation;
                 }
                 // If the location is not within the screen bounds,
-                // set it to the center of the screen and save new postion
+                // set it to the center of the screen and save new position
                 else
                 {
                     this.Location = new Point(
-                        Screen.PrimaryScreen.Bounds.Width / 2 - this.Width / 2,
-                        Screen.PrimaryScreen.Bounds.Height / 2 - this.Height / 2);
+                        _currentScreen.Bounds.Width / 2 - this.Width / 2,
+                        _currentScreen.Bounds.Height / 2 - this.Height / 2);
                     Properties.Settings.Default.ToolTipFormLocation = this.Location;
                     Properties.Settings.Default.Save();
                 }
             }
+            else
+            {
+                _currentScreen = Screen.PrimaryScreen;
+                this.Location = new Point(
+                    _currentScreen.Bounds.Width / 2 - this.Width / 2,
+                    _currentScreen.Bounds.Height / 2 - this.Height / 2);
+            }
+
+            _originalPosition = this.Location;
         }
 
         #endregion
@@ -88,12 +100,9 @@ namespace PomodoroTimer
                     textSize = g.MeasureString(lblText.Text, lblText.Font);
                 }
 
-                // Determine the screen where the tooltip form is displayed
-                Screen targetScreen = Screen.FromControl(this);
-
                 // Put label in the middle of the screen considering DPI and label size
-                int screenWidth = targetScreen.WorkingArea.Width;
-                int screenHeight = targetScreen.WorkingArea.Height;
+                int screenWidth = _currentScreen.WorkingArea.Width;
+                int screenHeight = _currentScreen.WorkingArea.Height;
                 int labelWidth = (int)textSize.Width;
                 int labelHeight = (int)textSize.Height;
                 int labelX = (screenWidth - labelWidth) / 2;
@@ -101,7 +110,7 @@ namespace PomodoroTimer
                 lblText.Location = new Point(labelX, labelY);
 
                 // Only for primary screen 
-                if (targetScreen.Primary)
+                if (_currentScreen.Primary)
                 {
                     // Focus window with Win32 API
                     SetForegroundWindow(this.Handle);
@@ -109,7 +118,7 @@ namespace PomodoroTimer
             }
         }
 
-        public void SetFullScreen(bool isFullScreen, TimerStatus timerStatus, bool secondMonitor = false)
+        public void SetFullScreen(bool isFullScreen, TimerStatus timerStatus, Screen otherScreen = null)
         {
             _isFullScreen = isFullScreen;
 
@@ -118,23 +127,20 @@ namespace PomodoroTimer
             if (isFullScreen)
             {
                 // If secondMonitor is true, move this window to the other monitor
-                if (secondMonitor && Screen.AllScreens.Length > 1)
+                if (otherScreen!=null)
                 {
-                    // Get the screen that is secondary
-                    Screen secondScreen = Screen.AllScreens.FirstOrDefault(s => !s.Primary);
-                    if (secondScreen != null)
-                    {
-                        this.StartPosition = FormStartPosition.Manual;
-                        this.Location = new Point(
-                            secondScreen.Bounds.Left + secondScreen.Bounds.Width / 2 - this.Width / 2,
-                            secondScreen.Bounds.Top + secondScreen.Bounds.Height / 2 - this.Height / 2);
-                        this.WindowState = FormWindowState.Normal; // Important to reset the state before maximizing
-                        this.WindowState = FormWindowState.Maximized;
-                    }
+                    // Get the screen that is not the current screen
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = new Point(
+                        otherScreen.Bounds.Left + otherScreen.Bounds.Width / 2 - this.Width / 2,
+                        otherScreen.Bounds.Top + otherScreen.Bounds.Height / 2 - this.Height / 2);
+                    this.WindowState = FormWindowState.Normal; // Important to reset the state before maximizing
+                    this.WindowState = FormWindowState.Maximized;
                 }
                 else
                 {
-                    this.StartPosition = FormStartPosition.CenterScreen;
+                    this.StartPosition = FormStartPosition.Manual;
+                    this.Location = new Point(_currentScreen.Bounds.Left, _currentScreen.Bounds.Top);
                     this.WindowState = FormWindowState.Normal; // Important to reset the state before maximizing
                     this.WindowState = FormWindowState.Maximized;
                 }
@@ -158,7 +164,7 @@ namespace PomodoroTimer
                 }
 
                 // Put label in the middle of the screen considering DPI and label size
-                Screen targetScreen = secondMonitor && Screen.AllScreens.Length > 1 ? Screen.AllScreens.FirstOrDefault(s => !s.Primary) : Screen.PrimaryScreen;
+                Screen targetScreen = otherScreen != null ? otherScreen : _currentScreen;
                 if (targetScreen != null)
                 {
                     int screenWidth = targetScreen.WorkingArea.Width;
@@ -192,20 +198,14 @@ namespace PomodoroTimer
                 // Remove exit/+5 buttons if required
                 RemoveButtons();
 
-                // Load last location
-                if (Properties.Settings.Default.ToolTipFormLocation != null &&
-                    Properties.Settings.Default.ToolTipFormLocation.X > 0 &&
-                    Properties.Settings.Default.ToolTipFormLocation.Y > 0)
-                {
-                    this.Location = Properties.Settings.Default.ToolTipFormLocation;
-                }
+                // Restore to original position
+                this.Location = _originalPosition;
             }
 
             // Ensure the form is brought to the front
             this.BringToFront();
             this.Show();
         }
-
 
         private void SetToolTipColor(TimerStatus timerStatus)
         {
@@ -326,13 +326,27 @@ namespace PomodoroTimer
             }
         }
 
+
         private void lblText_MouseUp(object sender, MouseEventArgs e)
         {
             _isDragging = false;
 
-            // Save new location
-            Properties.Settings.Default.ToolTipFormLocation = this.Location;
+            // Save new location and update current screen
+            _originalPosition = this.Location;
+            Properties.Settings.Default.ToolTipFormLocation = _originalPosition;
             Properties.Settings.Default.Save();
+            _currentScreen = Screen.FromPoint(_originalPosition);
+        }
+
+        private void ToolTipForm_MouseUp(object sender, MouseEventArgs e)
+        {
+            _isDragging = false;
+
+            // Save new location and update current screen
+            _originalPosition = this.Location;
+            Properties.Settings.Default.ToolTipFormLocation = _originalPosition;
+            Properties.Settings.Default.Save();
+            _currentScreen = Screen.FromPoint(_originalPosition);
         }
 
         private void ToolTipForm_MouseDown(object sender, MouseEventArgs e)
@@ -352,15 +366,6 @@ namespace PomodoroTimer
                     this.Location.X + e.X - _lastMousePosition.X,
                     this.Location.Y + e.Y - _lastMousePosition.Y);
             }
-        }
-
-        private void ToolTipForm_MouseUp(object sender, MouseEventArgs e)
-        {
-            _isDragging = false;
-
-            // Save new location
-            Properties.Settings.Default.ToolTipFormLocation = this.Location;
-            Properties.Settings.Default.Save();
         }
 
         #endregion

@@ -19,6 +19,7 @@ using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Windows.Automation;
 using System.Runtime.InteropServices;
+using System.Linq;
 
 namespace PomodoroTimer
 {
@@ -387,8 +388,20 @@ namespace PomodoroTimer
             if ((_currentStatus == TimerStatus.Break && Properties.Settings.Default.BreakFullScreen) ||
                 (_currentStatus == TimerStatus.Lunch || _currentStatus == TimerStatus.LongBreak))
             {
+                Screen currentScreen = Screen.FromPoint(_toolTipForm1.Location);
+                Screen otherScreen = Screen.AllScreens.FirstOrDefault(s => s.Primary != currentScreen.Primary);
+
                 _toolTipForm1.SetFullScreen(true, _currentStatus);
-                _toolTipForm2.SetFullScreen(true, _currentStatus, secondMonitor: true);
+
+                if (otherScreen != null)
+                {
+                    _toolTipForm2.SetFullScreen(true, _currentStatus, otherScreen);
+                    _toolTipForm2.Visible = true;
+                }
+                else
+                {
+                    _toolTipForm2.Visible = false;
+                }
             }
             else
             {
@@ -397,6 +410,7 @@ namespace PomodoroTimer
                 _toolTipForm2.Visible = false;
             }
         }
+
 
         private void UpdateTotalTimes()
         {
