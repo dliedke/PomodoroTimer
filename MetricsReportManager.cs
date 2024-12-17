@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Windows.Forms;
 using OfficeOpenXml;
+using System.Globalization;
 
 namespace PomodoroTimer
 {
@@ -18,79 +19,147 @@ namespace PomodoroTimer
             int totalRestTime = totalBreaksTime + totalLongBreakTime + totalLunchTime;
             int totalTime = totalWorkTime + totalRestTime;
 
-            string reportLine = $"{date.ToString("dddd")},{date.ToString("yyyy-MM-dd")},{FormatTime(totalTasksTime)},{FormatTime(totalMeetingTime)},{FormatTime(totalBreaksTime)},{FormatTime(totalLongBreakTime)},{FormatTime(totalLunchTime)},{totalBreaksCount},{FormatTime(totalWorkTime)},{FormatTime(totalRestTime)},{FormatTime(totalTime)},{totalTasksTime},{totalMeetingTime},{totalBreaksTime},{totalLongBreakTime},{totalLunchTime},{totalWorkTime},{totalRestTime},{totalTime}";
+            // Use the culture's full day name to ensure consistency
+            string dayName = date.ToString("dddd", CultureInfo.InvariantCulture);
 
-            // Create the app data folder if it doesn't exist
-            Directory.CreateDirectory(AppDataFolderPath);
+            string reportLine = string.Join(",",
+                dayName,
+                date.ToString("yyyy-MM-dd"),
+                FormatTime(totalTasksTime),
+                FormatTime(totalMeetingTime),
+                FormatTime(totalBreaksTime),
+                FormatTime(totalLongBreakTime),
+                FormatTime(totalLunchTime),
+                totalBreaksCount.ToString(),
+                FormatTime(totalWorkTime),
+                FormatTime(totalRestTime),
+                FormatTime(totalTime),
+                totalTasksTime.ToString(),
+                totalMeetingTime.ToString(),
+                totalBreaksTime.ToString(),
+                totalLongBreakTime.ToString(),
+                totalLunchTime.ToString(),
+                totalWorkTime.ToString(),
+                totalRestTime.ToString(),
+                totalTime.ToString()
+            );
 
-            // Add header row if the file doesn't exist
-            if (!File.Exists(ReportFilePath))
+            try
             {
-                string headerRow = "Day of the Week,Date,Total Task Time,Total Meeting Time,Total Break Time,Total Long Break Time,Total Lunch Time,Total Breaks Count,Total Work Time,Total Rest Time,Total Time,Total Task Seconds,Total Meeting Seconds,Total Break Seconds,Total Long Break Seconds,Total Lunch Seconds,Total Work Seconds,Total Rest Seconds,Total Seconds";
-                File.WriteAllText(ReportFilePath, headerRow + Environment.NewLine);
-            }
+                // Create the app data folder if it doesn't exist
+                Directory.CreateDirectory(AppDataFolderPath);
 
-            // Check if the date already exists in the file
-            bool dateExists = File.ReadLines(ReportFilePath).Skip(1).Any(line => line.Split(',')[1] == date.ToString("yyyy-MM-dd"));
-
-            if (dateExists)
-            {
-                // If the date exists, update the existing line
-                string[] lines = File.ReadAllLines(ReportFilePath);
-                for (int i = 1; i < lines.Length; i++)
+                // Add header row if the file doesn't exist
+                if (!File.Exists(ReportFilePath))
                 {
-                    if (lines[i].Split(',')[1] == date.ToString("yyyy-MM-dd"))
+                    string headerRow = "Day of the Week,Date,Total Task Time,Total Meeting Time,Total Break Time,Total Long Break Time,Total Lunch Time,Total Breaks Count,Total Work Time,Total Rest Time,Total Time,Total Task Seconds,Total Meeting Seconds,Total Break Seconds,Total Long Break Seconds,Total Lunch Seconds,Total Work Seconds,Total Rest Seconds,Total Seconds";
+                    File.WriteAllText(ReportFilePath, headerRow + Environment.NewLine);
+                }
+
+                // Read all existing lines
+                string[] existingLines = File.Exists(ReportFilePath)
+                    ? File.ReadAllLines(ReportFilePath)
+                    : new string[] { };
+
+                // Find if the date already exists (skip header row)
+                bool dateExists = false;
+                string dateToMatch = date.ToString("yyyy-MM-dd");
+
+                for (int i = 1; i < existingLines.Length; i++)
+                {
+                    string[] fields = existingLines[i].Split(',');
+                    if (fields.Length > 1 && fields[1] == dateToMatch)
                     {
-                        lines[i] = reportLine;
+                        existingLines[i] = reportLine;
+                        dateExists = true;
                         break;
                     }
                 }
-                File.WriteAllLines(ReportFilePath, lines);
-            }
-            else
-            {
-                // If the date doesn't exist, append a new line
-                File.AppendAllText(ReportFilePath, reportLine + Environment.NewLine);
-            }
 
-            SaveMetricsReportExcel();
+                if (!dateExists)
+                {
+                    // If the date doesn't exist, append the new line
+                    Array.Resize(ref existingLines, existingLines.Length + 1);
+                    existingLines[existingLines.Length - 1] = reportLine;
+                }
+
+                // Write all lines back to the file
+                File.WriteAllLines(ReportFilePath, existingLines);
+
+                // Update Excel report
+                SaveMetricsReportExcel();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving metrics report: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
         }
 
         public static (int totalTasksTime, int totalMeetingTime, int totalBreaksTime, int totalLongBreakTime, int totalLunchTime, int totalBreaksCount, int totalTime) LoadMetricsReport(DateTime date)
         {
-            if (File.Exists(ReportFilePath))
+            if (!File.Exists(ReportFilePath))
             {
-                string reportLine = File.ReadLines(ReportFilePath)
-                    .Skip(1) // Skip the header row
-                    .FirstOrDefault(line => line.Split(',')[1] == date.ToString("yyyy-MM-dd"));
+                return (0, 0, 0, 0, 0, 0, 0);
+            }
 
-                if (!string.IsNullOrEmpty(reportLine))
+            try
+            {
+                string dateToFind = date.ToString("yyyy-MM-dd");
+                string[] lines = File.ReadAllLines(ReportFilePath);
+
+                // Skip header and find matching date
+                var reportLine = lines.Skip(1)
+                    .FirstOrDefault(line => line.Split(',')[1].Trim() == dateToFind);
+
+                if (reportLine != null)
                 {
                     string[] values = reportLine.Split(',');
-                    if (values.Length == 19 &&
-                        int.TryParse(values[11], out int totalTasksTime) &&
-                        int.TryParse(values[12], out int totalMeetingTime) &&
-                        int.TryParse(values[13], out int totalBreaksTime) &&
-                        int.TryParse(values[14], out int totalLongBreakTime) &&
-                        int.TryParse(values[15], out int totalLunchTime) &&
-                        int.TryParse(values[7], out int totalBreaksCount) &&
-                        int.TryParse(values[18], out int totalTime))
+                    if (values.Length >= 19)
                     {
-                        return (totalTasksTime, totalMeetingTime, totalBreaksTime, totalLongBreakTime, totalLunchTime, totalBreaksCount, totalTime);
+                        return (
+                            int.Parse(values[11]), // totalTasksTime
+                            int.Parse(values[12]), // totalMeetingTime
+                            int.Parse(values[13]), // totalBreaksTime
+                            int.Parse(values[14]), // totalLongBreakTime
+                            int.Parse(values[15]), // totalLunchTime
+                            int.Parse(values[7]),  // totalBreaksCount
+                            int.Parse(values[18])  // totalTime
+                        );
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error loading metrics report: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
 
             return (0, 0, 0, 0, 0, 0, 0);
         }
 
+        private static string FormatTime(int totalSeconds)
+        {
+            TimeSpan timeSpan = TimeSpan.FromSeconds(totalSeconds);
+            return timeSpan.ToString(@"hh\:mm\:ss");
+        }
+
         private static void SaveMetricsReportExcel()
         {
-            if (File.Exists(ReportFilePath))
+            if (!File.Exists(ReportFilePath))
+            {
+                return;
+            }
+
+            try
             {
                 while (IsExcelFileOpen(ReportExcelFilePath))
                 {
-                    DialogResult result = MessageBox.Show($"Please close the Excel file '{ReportExcelFilePath}' to save the updated metrics.", "File in Use", MessageBoxButtons.RetryCancel, MessageBoxIcon.Warning);
+                    DialogResult result = MessageBox.Show(
+                        $"Please close the Excel file '{ReportExcelFilePath}' to save the updated metrics.",
+                        "File in Use",
+                        MessageBoxButtons.RetryCancel,
+                        MessageBoxIcon.Warning
+                    );
+
                     if (result == DialogResult.Cancel)
                     {
                         return;
@@ -101,70 +170,47 @@ namespace PomodoroTimer
 
                 using (var package = new ExcelPackage(new FileInfo(ReportExcelFilePath)))
                 {
-                    // Check if the worksheet already exists
-                    var worksheet = package.Workbook.Worksheets["Metrics Report"];
+                    var worksheet = package.Workbook.Worksheets.FirstOrDefault(ws => ws.Name == "Metrics Report");
                     if (worksheet != null)
                     {
-                        // Delete the existing worksheet
                         package.Workbook.Worksheets.Delete("Metrics Report");
                     }
 
-                    // Add a new worksheet with the same name
                     worksheet = package.Workbook.Worksheets.Add("Metrics Report");
 
-                    // Set header row
-                    worksheet.Cells[1, 1].Value = "Day of the Week";
-                    worksheet.Cells[1, 2].Value = "Date";
-                    worksheet.Cells[1, 3].Value = "Total Task";
-                    worksheet.Cells[1, 4].Value = "Total Meeting";
-                    worksheet.Cells[1, 5].Value = "Total Break";
-                    worksheet.Cells[1, 6].Value = "Total Long Break";
-                    worksheet.Cells[1, 7].Value = "Total Lunch";
-                    worksheet.Cells[1, 8].Value = "Total Breaks Count";
-                    worksheet.Cells[1, 9].Value = "Total Work";
-                    worksheet.Cells[1, 10].Value = "Total Rest";
-                    worksheet.Cells[1, 11].Value = "Total Time";
+                    // Read all lines from CSV
+                    string[] lines = File.ReadAllLines(ReportFilePath);
 
-                    // Fill data rows
-                    int rowIndex = 2;
-                    foreach (var line in File.ReadLines(ReportFilePath).Skip(1))
+                    // Process header
+                    string[] headers = lines[0].Split(',');
+                    for (int i = 0; i < 11; i++) // Only first 11 columns for display
                     {
-                        string[] values = line.Split(',');
-                        if (values.Length == 19)
-                        {
-                            worksheet.Cells[rowIndex, 1].Value = values[0];
-                            worksheet.Cells[rowIndex, 2].Value = DateTime.Parse(values[1]).ToString("yyyy-MM-dd");
-                            worksheet.Cells[rowIndex, 3].Value = values[2];
-                            worksheet.Cells[rowIndex, 4].Value = values[3];
-                            worksheet.Cells[rowIndex, 5].Value = values[4];
-                            worksheet.Cells[rowIndex, 6].Value = values[5];
-                            worksheet.Cells[rowIndex, 7].Value = values[6];
-                            worksheet.Cells[rowIndex, 8].Value = values[7];
-                            worksheet.Cells[rowIndex, 9].Value = values[8];
-                            worksheet.Cells[rowIndex, 10].Value = values[9];
-                            worksheet.Cells[rowIndex, 11].Value = values[10];
+                        worksheet.Cells[1, i + 1].Value = headers[i];
+                    }
 
-                            rowIndex++;
+                    // Process data rows
+                    for (int row = 1; row < lines.Length; row++)
+                    {
+                        string[] values = lines[row].Split(',');
+                        for (int col = 0; col < 11; col++) // Only first 11 columns for display
+                        {
+                            worksheet.Cells[row + 1, col + 1].Value = values[col];
                         }
                     }
 
                     // Apply table style
-                    var tableRange = worksheet.Cells[1, 1, rowIndex - 1, 11];
+                    var tableRange = worksheet.Cells[1, 1, lines.Length, 11];
                     var table = worksheet.Tables.Add(tableRange, "MetricsReportTable");
-                    table.TableStyle = OfficeOpenXml.Table.TableStyles.Medium9; // Blue table style
+                    table.TableStyle = OfficeOpenXml.Table.TableStyles.Medium9;
 
-                    // Auto-fit columns
                     worksheet.Cells.AutoFitColumns();
-
-                    // Adjust row height based on cell contents
-                    for (int row = 1; row <= rowIndex - 1; row++)
-                    {
-                        worksheet.Row(row).CustomHeight = true;
-                        worksheet.Row(row).Style.WrapText = true;
-                    }
 
                     package.Save();
                 }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Error saving Excel report: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
@@ -172,28 +218,16 @@ namespace PomodoroTimer
         {
             try
             {
-                if (!File.Exists(filePath))
-                {
-                    return false;
-                }
-
                 using (var stream = File.Open(filePath, FileMode.Open, FileAccess.Read, FileShare.None))
                 {
                     stream.Close();
                 }
+                return false;
             }
             catch (IOException)
             {
                 return true;
             }
-
-            return false;
-        }
-
-        private static string FormatTime(int totalSeconds)
-        {
-            TimeSpan timeSpan = TimeSpan.FromSeconds(totalSeconds);
-            return timeSpan.ToString("hh\\:mm\\:ss");
         }
     }
 }

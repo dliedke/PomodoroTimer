@@ -391,8 +391,12 @@ namespace PomodoroTimer
 
         private void ToolTipForm_FormClosing(object sender, FormClosingEventArgs e)
         {
-            Properties.Settings.Default.ToolTipFormLocation = this.Location;
-            Properties.Settings.Default.Save();
+            // If this.Location is not 0,0
+            if (this.Location.X > 0 && this.Location.Y > 0)
+            {
+                Properties.Settings.Default.ToolTipFormLocation = this.Location;
+                Properties.Settings.Default.Save();
+            }
         }
 
         #endregion
