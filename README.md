@@ -3,6 +3,8 @@ Configurable Pomodoro Timer to track
 your work/break/long break/meetings/lunch time to
 improve mental heath and productivity:
 
+- Default is 52min work and 17min break that is proven to be best to replenishes attention and motivation, creativity and productivity
+
 - Configurable task time
 
 - Configurable break time
