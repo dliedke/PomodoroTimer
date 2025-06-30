@@ -673,6 +673,11 @@ namespace PomodoroTimer
                     // Try to find the Teams icon in the tray with name "Microsoft Teams Microsoft Teams | Dell Technologies"
                     teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams Microsoft Teams | Dell Technologies"));
                 }
+                if (teamsIcon == null)
+                {
+                    // Try to find the Teams icon in the tray with name "Microsoft Teams Microsoft Teams | New activity"
+                    teamsIcon = trayIcons.FindFirst(TreeScope.Descendants, new PropertyCondition(AutomationElement.NameProperty, "Microsoft Teams Microsoft Teams | New activity"));
+                }
 
                 return teamsIcon;
             }
