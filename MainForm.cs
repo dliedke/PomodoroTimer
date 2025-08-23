@@ -112,20 +112,6 @@ namespace PomodoroTimer
 
             _originalToolTipFormSize = _toolTipForm1.Size;
 
-            // If no location is set, put _toolTipForm in center of screen
-            if (Properties.Settings.Default.ToolTipFormLocation == null ||
-                (Properties.Settings.Default.ToolTipFormLocation.X == 0 &&
-                 Properties.Settings.Default.ToolTipFormLocation.Y == 0))
-            {
-                _toolTipForm1.StartPosition = FormStartPosition.Manual;
-                _toolTipForm1.Location = new System.Drawing.Point(
-                    Screen.PrimaryScreen.Bounds.Width / 2 - _toolTipForm1.Width / 2,
-                    Screen.PrimaryScreen.Bounds.Height / 2 - _toolTipForm1.Height / 2);
-            }
-            else
-            {
-                _toolTipForm1.Location = Properties.Settings.Default.ToolTipFormLocation;
-            }
 
             LoadSettings();
             LoadMetrics();
