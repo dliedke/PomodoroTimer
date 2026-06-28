@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace PomodoroTimer.Properties {
+namespace DEMAgentProcess.Properties {
     
     
     [global::System.Runtime.CompilerServices.CompilerGeneratedAttribute()]
@@ -68,6 +68,18 @@ namespace PomodoroTimer.Properties {
             }
             set {
                 this["BreakFullScreen"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool KeepMachineAwake {
+            get {
+                return ((bool)(this["KeepMachineAwake"]));
+            }
+            set {
+                this["KeepMachineAwake"] = value;
             }
         }
     }

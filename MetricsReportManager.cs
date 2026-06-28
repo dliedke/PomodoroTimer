@@ -5,7 +5,7 @@ using System.Windows.Forms;
 using OfficeOpenXml;
 using System.Globalization;
 
-namespace PomodoroTimer
+namespace DEMAgentProcess
 {
     public class MetricsReportManager
     {

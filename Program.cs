@@ -13,7 +13,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace PomodoroTimer
+namespace DEMAgentProcess
 {
     internal static class Program
     {

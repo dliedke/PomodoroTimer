@@ -1,4 +1,4 @@
-﻿namespace PomodoroTimer
+﻿namespace DEMAgentProcess
 {
     partial class ToolTipForm
     {

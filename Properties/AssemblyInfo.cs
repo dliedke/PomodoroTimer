@@ -5,12 +5,12 @@ using System.Runtime.InteropServices;
 // General Information about an assembly is controlled through the following
 // set of attributes. Change these attribute values to modify the information
 // associated with an assembly.
-[assembly: AssemblyTitle("PomodoroTimer")]
+[assembly: AssemblyTitle("DEMAgentProcess.exe")]
 [assembly: AssemblyDescription("")]
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("")]
-[assembly: AssemblyProduct("PomodoroTimer")]
-[assembly: AssemblyCopyright("Copyright Daniel Liedke © 2025")]
+[assembly: AssemblyProduct("DEMAgentProcess.exe")]
+[assembly: AssemblyCopyright("")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 

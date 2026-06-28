@@ -13,7 +13,7 @@
 using System;
 using System.Windows.Forms;
 
-namespace PomodoroTimer
+namespace DEMAgentProcess
 {
     public partial class ConfigurationForm : Form
     {
@@ -24,12 +24,15 @@ namespace PomodoroTimer
         private Label lblBreakDuration;
         private Button btnSave;
         private CheckBox _checkBoxBreakFullScreen;
+        private CheckBox _checkBoxKeepAwake;
         private NumericUpDown numBreakDuration;
 
         public int TaskDuration { get; set; }
         public int BreakDuration { get; set; }
 
         public bool FullScreenBreak { get; set; }
+
+        public bool KeepMachineAwake { get; set; }
 
         public ConfigurationForm()
         {
@@ -49,6 +52,7 @@ namespace PomodoroTimer
             numTaskDuration.Value = TaskDuration / 60;
             numBreakDuration.Value = BreakDuration / 60;
             _checkBoxBreakFullScreen.Checked = FullScreenBreak;
+            _checkBoxKeepAwake.Checked = KeepMachineAwake;
         }
 
         private void btnSave_Click(object sender, EventArgs e)
@@ -56,6 +60,7 @@ namespace PomodoroTimer
             TaskDuration = (int)numTaskDuration.Value * 60;
             BreakDuration = (int)numBreakDuration.Value * 60;
             FullScreenBreak = _checkBoxBreakFullScreen.Checked;
+            KeepMachineAwake = _checkBoxKeepAwake.Checked;
             DialogResult = DialogResult.OK;
         }
 
@@ -71,6 +76,7 @@ namespace PomodoroTimer
             this.lblBreakDuration = new System.Windows.Forms.Label();
             this.btnSave = new System.Windows.Forms.Button();
             this._checkBoxBreakFullScreen = new System.Windows.Forms.CheckBox();
+            this._checkBoxKeepAwake = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)(this.numBreakDuration)).BeginInit();
             ((System.ComponentModel.ISupportInitialize)(this.numTaskDuration)).BeginInit();
             this.SuspendLayout();
@@ -86,7 +92,7 @@ namespace PomodoroTimer
             0,
             0});
             this.numBreakDuration.Minimum = new decimal(new int[] {
-            1,
+            0,
             0,
             0,
             0});
@@ -168,11 +174,23 @@ namespace PomodoroTimer
             this._checkBoxBreakFullScreen.TabIndex = 5;
             this._checkBoxBreakFullScreen.Text = "Full Screen Break";
             this._checkBoxBreakFullScreen.UseVisualStyleBackColor = true;
-            // 
+            //
+            // _checkBoxKeepAwake
+            //
+            this._checkBoxKeepAwake.AutoSize = true;
+            this._checkBoxKeepAwake.ForeColor = System.Drawing.Color.White;
+            this._checkBoxKeepAwake.Location = new System.Drawing.Point(211, 300);
+            this._checkBoxKeepAwake.Name = "_checkBoxKeepAwake";
+            this._checkBoxKeepAwake.Size = new System.Drawing.Size(277, 36);
+            this._checkBoxKeepAwake.TabIndex = 6;
+            this._checkBoxKeepAwake.Text = "Keep Machine Awake";
+            this._checkBoxKeepAwake.UseVisualStyleBackColor = true;
+            //
             // ConfigurationForm
-            // 
+            //
             this.BackColor = System.Drawing.Color.FromArgb(((int)(((byte)(64)))), ((int)(((byte)(64)))), ((int)(((byte)(64)))));
             this.ClientSize = new System.Drawing.Size(698, 479);
+            this.Controls.Add(this._checkBoxKeepAwake);
             this.Controls.Add(this._checkBoxBreakFullScreen);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.lblBreakDuration);

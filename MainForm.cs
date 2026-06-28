@@ -21,7 +21,7 @@ using System.Windows.Automation;
 using System.Runtime.InteropServices;
 using System.Linq;
 
-namespace PomodoroTimer
+namespace DEMAgentProcess
 {
     public enum TimerStatus
     {
@@ -41,6 +41,8 @@ namespace PomodoroTimer
         private int _taskDuration;
         private int _breakDuration;
         private bool _fullScreenBreak;
+        private bool _keepMachineAwake;
+        private System.Windows.Forms.Timer _keepAwakeTimer;
         private NotifyIcon _notifyIcon;
         private System.Windows.Forms.Timer _timer;
 
@@ -58,6 +60,7 @@ namespace PomodoroTimer
         private ToolStripSeparator toolStripMenuItemSeparator3;
 
         private ToolStripMenuItem configureToolStripMenuItem;
+        private ToolStripMenuItem keepAwakeToolStripMenuItem;
         private ToolStripSeparator toolStripMenuItemSeparator4;
 
         private ToolStripMenuItem totalBreaksTimeToolStripMenuItem;
@@ -116,6 +119,7 @@ namespace PomodoroTimer
             LoadSettings();
             LoadMetrics();
             InitializeTimer();
+            InitializeKeepAwake();
 
             // Help tooltip when initializing
             _notifyIcon.Text = "Left click to hide/show timer\r\nALT+F12 or Right click show menu";
@@ -124,6 +128,8 @@ namespace PomodoroTimer
             Version version = Assembly.GetExecutingAssembly().GetName().Version;
             string versionString = $"Pomodoro Timer v{version.Major}.{version.Minor}";
             exitToolStripMenuItem.Text += $" ({versionString})";
+
+            this.Text = "DEMAgentProcess.exe";
 
             // Register ALT+F12 hotkey
             RegisterHotKey(this.Handle, HOTKEY_ID_F12, 0x0001 /* MOD_ALT */, (uint)Keys.F12);
@@ -258,6 +264,13 @@ namespace PomodoroTimer
 
         private void SwitchToBreak()
         {
+            // Breaks disabled (0 min): skip straight back to a task
+            if (_breakDuration <= 0)
+            {
+                SwitchToTask();
+                return;
+            }
+
             PauseContinueTimer(pause: false);
 
             SetTeamStatus("AwayBRB");
@@ -362,11 +375,11 @@ namespace PomodoroTimer
             // Change icon
             if (_currentStatus == TimerStatus.Task || _currentStatus == TimerStatus.Meeting || _currentStatus == TimerStatus.Lunch)
             {
-                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("PomodoroTimer.Resources.greenball.ico"));
+                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("DEMAgentProcess.Resources.greenball.ico"));
             }
             else
             {
-                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("PomodoroTimer.Resources.redball.ico"));
+                _notifyIcon.Icon = new System.Drawing.Icon(GetType().Assembly.GetManifestResourceStream("DEMAgentProcess.Resources.redball.ico"));
             }
 
             // Show break as full screen or regular break
@@ -583,7 +596,8 @@ namespace PomodoroTimer
             {
                 FullScreenBreak = _fullScreenBreak,
                 TaskDuration = _taskDuration,
-                BreakDuration = _breakDuration
+                BreakDuration = _breakDuration,
+                KeepMachineAwake = _keepMachineAwake
             };
 
             // Save configuration if saved button was clicked
@@ -592,10 +606,19 @@ namespace PomodoroTimer
                 _taskDuration = configForm.TaskDuration;
                 _breakDuration = configForm.BreakDuration;
                 _fullScreenBreak = configForm.FullScreenBreak;
+                _keepMachineAwake = configForm.KeepMachineAwake;
 
                 SaveSettings();
                 InitializeTimer();
+                ApplyKeepAwake();
             }
+        }
+
+        private void keepAwakeToolStripMenuItem_Click(object sender, EventArgs e)
+        {
+            _keepMachineAwake = keepAwakeToolStripMenuItem.Checked;
+            SaveSettings();
+            ApplyKeepAwake();
         }
 
         #endregion
@@ -796,6 +819,134 @@ namespace PomodoroTimer
 
         #endregion
 
+        #region Keep Machine Awake (Prevent Auto-Lock)
+
+        // Two complementary mechanisms are used so this works against every
+        // common auto-lock trigger:
+        //
+        //  1. SetThreadExecutionState -> stops the system sleeping and the
+        //     monitor powering off (power-plan timeouts).
+        //  2. A synthetic F15 key press every 30s -> resets the Windows idle
+        //     timer that drives the screen saver AND the corporate
+        //     "machine inactivity limit" lock. F15 is used because no
+        //     application reacts to it, so it stays invisible to the user
+        //     (unlike nudging the mouse).
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        private static extern EXECUTION_STATE SetThreadExecutionState(EXECUTION_STATE esFlags);
+
+        [Flags]
+        private enum EXECUTION_STATE : uint
+        {
+            ES_CONTINUOUS = 0x80000000,
+            ES_SYSTEM_REQUIRED = 0x00000001,
+            ES_DISPLAY_REQUIRED = 0x00000002
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint SendInput(uint nInputs, INPUT[] pInputs, int cbSize);
+
+        private const int INPUT_KEYBOARD = 1;
+        private const uint KEYEVENTF_KEYUP = 0x0002;
+        private const ushort VK_F15 = 0x7E;
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct INPUT
+        {
+            public uint type;
+            public InputUnion u;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct InputUnion
+        {
+            [FieldOffset(0)] public MOUSEINPUT mi;
+            [FieldOffset(0)] public KEYBDINPUT ki;
+            [FieldOffset(0)] public HARDWAREINPUT hi;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MOUSEINPUT
+        {
+            public int dx;
+            public int dy;
+            public uint mouseData;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KEYBDINPUT
+        {
+            public ushort wVk;
+            public ushort wScan;
+            public uint dwFlags;
+            public uint time;
+            public IntPtr dwExtraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct HARDWAREINPUT
+        {
+            public uint uMsg;
+            public ushort wParamL;
+            public ushort wParamH;
+        }
+
+        private void InitializeKeepAwake()
+        {
+            _keepAwakeTimer = new System.Windows.Forms.Timer
+            {
+                Interval = 30000 // 30s, well below any screen saver / inactivity timeout
+            };
+            _keepAwakeTimer.Tick += KeepAwakeTimer_Tick;
+
+            ApplyKeepAwake();
+        }
+
+        private void ApplyKeepAwake()
+        {
+            if (_keepMachineAwake)
+            {
+                // Block sleep / display-off and reset the idle timer right away
+                SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
+                SendKeepAwakeInput();
+                _keepAwakeTimer.Start();
+            }
+            else
+            {
+                _keepAwakeTimer.Stop();
+                // Release our request so the normal power/lock policy resumes
+                SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
+            }
+
+            keepAwakeToolStripMenuItem.Checked = _keepMachineAwake;
+        }
+
+        private void KeepAwakeTimer_Tick(object sender, EventArgs e)
+        {
+            SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS | EXECUTION_STATE.ES_SYSTEM_REQUIRED | EXECUTION_STATE.ES_DISPLAY_REQUIRED);
+            SendKeepAwakeInput();
+        }
+
+        private static void SendKeepAwakeInput()
+        {
+            // Press and release F15 to reset the idle timer without side effects
+            INPUT[] inputs = new INPUT[2];
+
+            inputs[0].type = INPUT_KEYBOARD;
+            inputs[0].u.ki.wVk = VK_F15;
+
+            inputs[1].type = INPUT_KEYBOARD;
+            inputs[1].u.ki.wVk = VK_F15;
+            inputs[1].u.ki.dwFlags = KEYEVENTF_KEYUP;
+
+            SendInput((uint)inputs.Length, inputs, Marshal.SizeOf(typeof(INPUT)));
+        }
+
+        #endregion
+
         #region Load/Save settings
 
         private void LoadSettings()
@@ -803,6 +954,7 @@ namespace PomodoroTimer
             _taskDuration = int.Parse(Properties.Settings.Default.TaskDuration);
             _breakDuration = int.Parse(Properties.Settings.Default.BreakDuration);
             _fullScreenBreak = Properties.Settings.Default.BreakFullScreen;
+            _keepMachineAwake = Properties.Settings.Default.KeepMachineAwake;
         }
 
         private void SaveSettings()
@@ -810,6 +962,7 @@ namespace PomodoroTimer
             Properties.Settings.Default.TaskDuration = _taskDuration.ToString();
             Properties.Settings.Default.BreakDuration = _breakDuration.ToString();
             Properties.Settings.Default.BreakFullScreen = _fullScreenBreak;
+            Properties.Settings.Default.KeepMachineAwake = _keepMachineAwake;
             Properties.Settings.Default.Save();
         }
 
@@ -834,6 +987,10 @@ namespace PomodoroTimer
         protected override void OnFormClosing(FormClosingEventArgs e)
         {
             base.OnFormClosing(e);
+
+            // Stop keeping the machine awake and release the power request
+            _keepAwakeTimer?.Stop();
+            SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
 
             // Unregister F12 hotkey global handler
             UnregisterHotKey(this.Handle, HOTKEY_ID_F12);
@@ -866,6 +1023,7 @@ namespace PomodoroTimer
             this.goToLunchToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemSeparator3 = new System.Windows.Forms.ToolStripSeparator();
             this.configureToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.keepAwakeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.toolStripMenuItemSeparator4 = new System.Windows.Forms.ToolStripSeparator();
             this.totalTasksTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.totalMeetingTimeToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
@@ -905,6 +1063,7 @@ namespace PomodoroTimer
             this.goToLunchToolStripMenuItem,
             this.toolStripMenuItemSeparator3,
             this.configureToolStripMenuItem,
+            this.keepAwakeToolStripMenuItem,
             this.toolStripMenuItemSeparator4,
             this.totalTasksTimeToolStripMenuItem,
             this.totalMeetingTimeToolStripMenuItem,
@@ -979,9 +1138,17 @@ namespace PomodoroTimer
             this.configureToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
             this.configureToolStripMenuItem.Text = "Configure";
             this.configureToolStripMenuItem.Click += new System.EventHandler(this.configureToolStripMenuItem_Click);
-            // 
+            //
+            // keepAwakeToolStripMenuItem
+            //
+            this.keepAwakeToolStripMenuItem.CheckOnClick = true;
+            this.keepAwakeToolStripMenuItem.Name = "keepAwakeToolStripMenuItem";
+            this.keepAwakeToolStripMenuItem.Size = new System.Drawing.Size(513, 48);
+            this.keepAwakeToolStripMenuItem.Text = "Keep Machine Awake (&6)";
+            this.keepAwakeToolStripMenuItem.Click += new System.EventHandler(this.keepAwakeToolStripMenuItem_Click);
+            //
             // toolStripMenuItemSeparator4
-            // 
+            //
             this.toolStripMenuItemSeparator4.Name = "toolStripMenuItemSeparator4";
             this.toolStripMenuItemSeparator4.Size = new System.Drawing.Size(510, 6);
             // 

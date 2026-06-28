@@ -16,7 +16,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.Runtime.InteropServices;
 
-namespace PomodoroTimer
+namespace DEMAgentProcess
 {
     public partial class ToolTipForm : Form
     {

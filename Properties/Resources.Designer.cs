@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace PomodoroTimer.Properties {
+namespace DEMAgentProcess.Properties {
     using System;
     
     
