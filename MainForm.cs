@@ -221,7 +221,9 @@ namespace DEMAgentProcess
             _previousStatus = _currentStatus;
 
             // Play a melody if the remaining time is 10 seconds
-            if (_remainingTime == 10 && _currentStatus != TimerStatus.Meeting)
+            // (skip when breaks are disabled, since the task just restarts)
+            if (_remainingTime == 10 && _currentStatus != TimerStatus.Meeting &&
+                !(_currentStatus == TimerStatus.Task && _breakDuration <= 0))
             {
                 PlayMelody(_currentStatus == TimerStatus.Task);
             }
