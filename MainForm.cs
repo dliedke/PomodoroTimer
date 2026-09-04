@@ -19,6 +19,7 @@ using System.Windows.Forms;
 using System.Threading.Tasks;
 using System.Windows.Automation;
 using System.Runtime.InteropServices;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace DEMAgentProcess
@@ -45,6 +46,7 @@ namespace DEMAgentProcess
         private System.Windows.Forms.Timer _keepAwakeTimer;
         private NotifyIcon _notifyIcon;
         private System.Windows.Forms.Timer _timer;
+        private System.Windows.Forms.Timer _screenRefreshTimer;
 
         private new ContextMenuStrip ContextMenu;
 
@@ -78,8 +80,12 @@ namespace DEMAgentProcess
 
         private ToolTip toolTip;
         bool _hideToolTipTimer = false;
+        private string _currentDisplayText = string.Empty;
         private ToolTipForm _toolTipForm1 = new ToolTipForm();
-        private ToolTipForm _toolTipForm2 = new ToolTipForm();
+
+        // One extra full screen window for every screen that does not hold the small timer,
+        // so break/lunch/long break always cover every connected monitor
+        private readonly List<ToolTipForm> _extraFullScreenForms = new List<ToolTipForm>();
 
         private int _totalBreakTime;
         private int _totalMeetingTime;
@@ -333,19 +339,19 @@ namespace DEMAgentProcess
                 time = $"{hours:00}:{minutes:00}:{seconds:00}";
 
                 // Increase _toolTipForm.Size by 13.5%
-                _toolTipForm1.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.35), _originalToolTipFormSize.Height);
+                _toolTipForm1.NormalSize = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.35), _originalToolTipFormSize.Height);
             }
             else if (hours > 0)
             {
                 time = $"{hours:00}:{minutes:00}:{seconds:00}";
 
                 // Increase _toolTipForm.Size by 12%
-                _toolTipForm1.Size = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.2), _originalToolTipFormSize.Height);
+                _toolTipForm1.NormalSize = new System.Drawing.Size((int)(_originalToolTipFormSize.Width * 1.2), _originalToolTipFormSize.Height);
             }
             else
             {
                 time = $"{minutes:00}:{seconds:00}";
-                _toolTipForm1.Size = _originalToolTipFormSize;
+                _toolTipForm1.NormalSize = _originalToolTipFormSize;
             }
 
             // Get task, break, meeting, or lunch string
@@ -358,6 +364,7 @@ namespace DEMAgentProcess
 
             // Create text with task, break, meeting, or lunch and time
             string notificationText = $"{statusText} - {time}";
+            _currentDisplayText = notificationText;
 
             // Update tooltip text if required
             if (_hideToolTipTimer)
@@ -386,29 +393,72 @@ namespace DEMAgentProcess
 
             // Show break as full screen or regular break
             // Full screen lunch and long break
-            if ((_currentStatus == TimerStatus.Break && Properties.Settings.Default.BreakFullScreen) ||
-                (_currentStatus == TimerStatus.Lunch || _currentStatus == TimerStatus.LongBreak))
+            bool showFullScreen = (_currentStatus == TimerStatus.Break && Properties.Settings.Default.BreakFullScreen) ||
+                                  (_currentStatus == TimerStatus.Lunch || _currentStatus == TimerStatus.LongBreak);
+
+            if (showFullScreen)
             {
-                Screen currentScreen = Screen.FromPoint(_toolTipForm1.Location);
-                Screen otherScreen = Screen.AllScreens.FirstOrDefault(s => s.Primary != currentScreen.Primary);
+                // The screen holding the small timer shows the main full screen window and
+                // every other connected screen gets an extra one. Screens are always taken
+                // from the current small timer position, never from a cached value, so a
+                // monitor is never left out or covered twice
+                Screen timerScreen = _toolTipForm1.HomeScreen;
+                Screen[] otherScreens = Screen.AllScreens
+                    .Where(s => s.DeviceName != timerScreen.DeviceName)
+                    .ToArray();
 
-                _toolTipForm1.SetFullScreen(true, _currentStatus);
+                _toolTipForm1.SetFullScreen(true, _currentStatus, timerScreen);
 
-                if (otherScreen != null)
+                while (_extraFullScreenForms.Count < otherScreens.Length)
                 {
-                    _toolTipForm2.SetFullScreen(true, _currentStatus, otherScreen);
-                    _toolTipForm2.Visible = true;
+                    _extraFullScreenForms.Add(new ToolTipForm());
                 }
-                else
+
+                for (int i = 0; i < _extraFullScreenForms.Count; i++)
                 {
-                    _toolTipForm2.Visible = false;
+                    ToolTipForm extraForm = _extraFullScreenForms[i];
+
+                    // Extra windows are only used for full screen, so any window without
+                    // a screen of its own (monitor disconnected) is just hidden
+                    if (i < otherScreens.Length)
+                    {
+                        extraForm.SetFullScreen(true, _currentStatus, otherScreens[i]);
+                        extraForm.SetToolTip(_currentDisplayText);
+                    }
+                    else
+                    {
+                        extraForm.SetFullScreen(false, _currentStatus);
+                        extraForm.Hide();
+                    }
                 }
             }
             else
             {
                 _toolTipForm1.SetFullScreen(false, _currentStatus);
-                _toolTipForm2.SetFullScreen(false, _currentStatus);
-                _toolTipForm2.Visible = false;
+
+                foreach (ToolTipForm extraForm in _extraFullScreenForms)
+                {
+                    extraForm.SetFullScreen(false, _currentStatus);
+                    extraForm.Hide();
+                }
+            }
+
+            ApplyTimerVisibility();
+        }
+
+        /// <summary>
+        /// Shows or hides the small timer. A full screen break/lunch/long break is always
+        /// visible, even when the user hid the timer with a left click in the tray icon.
+        /// </summary>
+        private void ApplyTimerVisibility()
+        {
+            if (!_hideToolTipTimer || _toolTipForm1.IsFullScreen)
+            {
+                _toolTipForm1.Show();
+            }
+            else
+            {
+                _toolTipForm1.Hide();
             }
         }
 
@@ -468,6 +518,8 @@ namespace DEMAgentProcess
                 {
                     _notifyIcon.Text = "";
                 }
+
+                ApplyTimerVisibility();
             }
         }
 
@@ -475,19 +527,15 @@ namespace DEMAgentProcess
         {
             _toolTipForm1.SetToolTip(message);
 
-            if (_toolTipForm2.Visible)
+            foreach (ToolTipForm extraForm in _extraFullScreenForms)
             {
-                _toolTipForm2.SetToolTip(message);
+                if (extraForm.Visible)
+                {
+                    extraForm.SetToolTip(message);
+                }
             }
 
-            if (!_hideToolTipTimer)
-            {
-                _toolTipForm1.Show();
-            }
-            else
-            {
-                _toolTipForm1.Hide();
-            }
+            ApplyTimerVisibility();
         }
 
         public void PlayMelody(bool isTask)
@@ -788,6 +836,7 @@ namespace DEMAgentProcess
         private static extern bool UnregisterHotKey(IntPtr hWnd, int id);
 
         private const int HOTKEY_ID_F12 = 12;
+        private const int WM_DISPLAYCHANGE = 0x007E;
 
         protected override void WndProc(ref Message m)
         {
@@ -802,6 +851,33 @@ namespace DEMAgentProcess
                     ShowContextMenu();
                 }
             }
+
+            // A monitor was connected/disconnected or the resolution changed,
+            // reapply the full screen windows so no screen is left without the break
+            if (m.Msg == WM_DISPLAYCHANGE && _timer != null)
+            {
+                RestartScreenRefreshTimer();
+            }
+        }
+
+        /// <summary>
+        /// Waits for the monitors to settle after a display change before repositioning
+        /// the full screen windows, the screen list is only reliable a moment later.
+        /// </summary>
+        private void RestartScreenRefreshTimer()
+        {
+            if (_screenRefreshTimer == null)
+            {
+                _screenRefreshTimer = new System.Windows.Forms.Timer { Interval = 1500 };
+                _screenRefreshTimer.Tick += (s, e) =>
+                {
+                    _screenRefreshTimer.Stop();
+                    UpdateFullScreenStatus();
+                };
+            }
+
+            _screenRefreshTimer.Stop();
+            _screenRefreshTimer.Start();
         }
 
         private void ShowContextMenu()
@@ -992,6 +1068,7 @@ namespace DEMAgentProcess
 
             // Stop keeping the machine awake and release the power request
             _keepAwakeTimer?.Stop();
+            _screenRefreshTimer?.Stop();
             SetThreadExecutionState(EXECUTION_STATE.ES_CONTINUOUS);
 
             // Unregister F12 hotkey global handler

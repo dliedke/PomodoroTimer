@@ -29,8 +29,45 @@ namespace DEMAgentProcess
         private bool _isDragging = false;
         private Point _lastMousePosition;
         private bool _isFullScreen = false;
-        private Screen _currentScreen;
+        private Screen _fullScreenTarget;
         private Point _originalPosition;
+        private Size _normalSize;
+
+        /// <summary>
+        /// True while this window is covering a full screen.
+        /// </summary>
+        public bool IsFullScreen
+        {
+            get { return _isFullScreen; }
+        }
+
+        /// <summary>
+        /// Screen where the small timer is placed. It is always recalculated from the
+        /// small timer position, so it never gets stale after a monitor is added,
+        /// removed or has its resolution changed.
+        /// </summary>
+        public Screen HomeScreen
+        {
+            get { return Screen.FromPoint(_originalPosition); }
+        }
+
+        /// <summary>
+        /// Size used by the small timer. It is ignored while in full screen, otherwise
+        /// the timer text width would shrink the full screen window back to a small box.
+        /// </summary>
+        public Size NormalSize
+        {
+            get { return _normalSize; }
+            set
+            {
+                _normalSize = value;
+
+                if (!_isFullScreen)
+                {
+                    this.Size = value;
+                }
+            }
+        }
 
         public ToolTipForm()
         {
@@ -47,8 +84,8 @@ namespace DEMAgentProcess
             {
                 // Get saved location
                 Point savedLocation = Properties.Settings.Default.ToolTipFormLocation;
-                _currentScreen = Screen.FromPoint(savedLocation);
-                Rectangle screenBounds = _currentScreen.Bounds;
+                Screen savedScreen = Screen.FromPoint(savedLocation);
+                Rectangle screenBounds = savedScreen.Bounds;
 
                 // If the location is within the screen bounds, set it and save new position
                 if (screenBounds.Contains(savedLocation))
@@ -61,21 +98,22 @@ namespace DEMAgentProcess
                 else
                 {
                     this.Location = new Point(
-                        _currentScreen.Bounds.Width / 2 - this.Width / 2,
-                        _currentScreen.Bounds.Height / 2 - this.Height / 2);
+                        savedScreen.Bounds.Width / 2 - this.Width / 2,
+                        savedScreen.Bounds.Height / 2 - this.Height / 2);
                     Properties.Settings.Default.ToolTipFormLocation = this.Location;
                     Properties.Settings.Default.Save();
                 }
             }
             else
             {
-                _currentScreen = Screen.PrimaryScreen;
+                Screen primaryScreen = Screen.PrimaryScreen;
                 this.Location = new Point(
-                    _currentScreen.Bounds.Width / 2 - this.Width / 2,
-                    _currentScreen.Bounds.Height / 2 - this.Height / 2);
+                    primaryScreen.Bounds.Width / 2 - this.Width / 2,
+                    primaryScreen.Bounds.Height / 2 - this.Height / 2);
             }
 
             _originalPosition = this.Location;
+            _normalSize = this.Size;
         }
 
         #endregion
@@ -92,25 +130,10 @@ namespace DEMAgentProcess
 
             if (_isFullScreen)
             {
-                // Measure the text size after updating the text
-                lblText.Update();
-                SizeF textSize;
-                using (Graphics g = lblText.CreateGraphics())
-                {
-                    textSize = g.MeasureString(lblText.Text, lblText.Font);
-                }
-
-                // Put label in the middle of the screen considering DPI and label size
-                int screenWidth = _currentScreen.WorkingArea.Width;
-                int screenHeight = _currentScreen.WorkingArea.Height;
-                int labelWidth = (int)textSize.Width;
-                int labelHeight = (int)textSize.Height;
-                int labelX = (screenWidth - labelWidth) / 2;
-                int labelY = (screenHeight - labelHeight) / 2;
-                lblText.Location = new Point(labelX, labelY);
+                CenterLabel();
 
                 // Only for primary screen 
-                if (_currentScreen.Primary)
+                if (_fullScreenTarget != null && _fullScreenTarget.Primary)
                 {
                     // Focus window with Win32 API
                     SetForegroundWindow(this.Handle);
@@ -118,7 +141,12 @@ namespace DEMAgentProcess
             }
         }
 
-        public void SetFullScreen(bool isFullScreen, TimerStatus timerStatus, Screen otherScreen = null)
+        /// <summary>
+        /// Shows this window covering the whole target screen, or restores it back to
+        /// the small timer. The target screen is always explicit, the window is never
+        /// maximized, otherwise Windows would decide in which monitor to show it.
+        /// </summary>
+        public void SetFullScreen(bool isFullScreen, TimerStatus timerStatus, Screen targetScreen = null)
         {
             _isFullScreen = isFullScreen;
 
@@ -126,27 +154,15 @@ namespace DEMAgentProcess
 
             if (isFullScreen)
             {
-                // If secondMonitor is true, move this window to the other monitor
-                if (otherScreen!=null)
-                {
-                    // Get the screen that is not the current screen
-                    this.StartPosition = FormStartPosition.Manual;
-                    this.Location = new Point(
-                        otherScreen.Bounds.Left + otherScreen.Bounds.Width / 2 - this.Width / 2,
-                        otherScreen.Bounds.Top + otherScreen.Bounds.Height / 2 - this.Height / 2);
-                    this.WindowState = FormWindowState.Normal; // Important to reset the state before maximizing
-                    this.WindowState = FormWindowState.Maximized;
-                }
-                else
-                {
-                    this.StartPosition = FormStartPosition.Manual;
-                    this.Location = new Point(_currentScreen.Bounds.Left, _currentScreen.Bounds.Top);
-                    this.WindowState = FormWindowState.Normal; // Important to reset the state before maximizing
-                    this.WindowState = FormWindowState.Maximized;
-                }
+                _fullScreenTarget = targetScreen ?? HomeScreen;
 
-                // Allow the taskbar to be displayed
-                this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
+                // Whole screen bounds and no border, so the break also covers the
+                // taskbar. Being top most keeps it above the taskbar in every screen
+                this.StartPosition = FormStartPosition.Manual;
+                this.WindowState = FormWindowState.Normal;
+                this.FormBorderStyle = FormBorderStyle.None;
+                this.Bounds = _fullScreenTarget.Bounds;
+                this.TopMost = true;
                 this.Cursor = Cursors.Default;
 
                 // Increase lblText font size to 110
@@ -155,33 +171,24 @@ namespace DEMAgentProcess
                 // Ensure the label resizes to fit the text
                 lblText.AutoSize = true;
 
-                // Update the label size and position after setting the new font
-                lblText.Update();
-                SizeF textSize;
-                using (Graphics g = lblText.CreateGraphics())
-                {
-                    textSize = g.MeasureString(lblText.Text, lblText.Font);
-                }
+                // Put the label in the middle of the screen
+                CenterLabel();
 
-                // Put label in the middle of the screen considering DPI and label size
-                Screen targetScreen = otherScreen != null ? otherScreen : _currentScreen;
-                if (targetScreen != null)
-                {
-                    int screenWidth = targetScreen.WorkingArea.Width;
-                    int screenHeight = targetScreen.WorkingArea.Height;
-                    int labelWidth = (int)textSize.Width;
-                    int labelHeight = (int)textSize.Height;
-                    int labelX = (screenWidth - labelWidth) / 2;
-                    int labelY = (screenHeight - labelHeight) / 2;
-                    lblText.Location = new Point(labelX, labelY);
+                // Add exit and +5 buttons, removing the previous ones if this window
+                // was already in full screen (for example lunch switched to long break)
+                RemoveButtons();
+                AddButtons(this.ClientSize.Width, this.ClientSize.Height, timerStatus == TimerStatus.Break);
 
-                    // Add exit and +5 buttons if required
-                    AddButtons(screenWidth, screenHeight, timerStatus == TimerStatus.Break);
-                }
+                // Full screen must always be visible, even when the small timer is hidden
+                this.Show();
+                this.BringToFront();
             }
             else
             {
+                _fullScreenTarget = null;
+
                 this.WindowState = FormWindowState.Normal;
+                this.FormBorderStyle = FormBorderStyle.FixedToolWindow;
                 this.Cursor = Cursors.SizeAll;
 
                 // Decrease lblText font size to 12
@@ -198,13 +205,26 @@ namespace DEMAgentProcess
                 // Remove exit/+5 buttons if required
                 RemoveButtons();
 
-                // Restore to original position
+                // Restore to original size and position, visibility is up to the caller
+                this.Size = _normalSize;
                 this.Location = _originalPosition;
             }
+        }
 
-            // Ensure the form is brought to the front
-            this.BringToFront();
-            this.Show();
+        private void CenterLabel()
+        {
+            // Measure the text size after updating the text
+            lblText.Update();
+            SizeF textSize;
+            using (Graphics g = lblText.CreateGraphics())
+            {
+                textSize = g.MeasureString(lblText.Text, lblText.Font);
+            }
+
+            // Put label in the middle of the window considering DPI and label size
+            lblText.Location = new Point(
+                (this.ClientSize.Width - (int)textSize.Width) / 2,
+                (this.ClientSize.Height - (int)textSize.Height) / 2);
         }
 
         private void SetToolTipColor(TimerStatus timerStatus)
@@ -309,48 +329,44 @@ namespace DEMAgentProcess
 
         private void lblText_MouseDown(object sender, MouseEventArgs e)
         {
-            if (e.Button == MouseButtons.Left)
-            {
-                _isDragging = true;
-                _lastMousePosition = e.Location;
-            }
+            StartDragging(e);
         }
 
         private void lblText_MouseMove(object sender, MouseEventArgs e)
         {
-            if (_isDragging)
-            {
-                this.Location = new Point(
-                    this.Location.X + e.X - _lastMousePosition.X,
-                    this.Location.Y + e.Y - _lastMousePosition.Y);
-            }
+            Drag(e);
         }
 
 
         private void lblText_MouseUp(object sender, MouseEventArgs e)
         {
-            _isDragging = false;
-
-            // Save new location and update current screen
-            _originalPosition = this.Location;
-            Properties.Settings.Default.ToolTipFormLocation = _originalPosition;
-            Properties.Settings.Default.Save();
-            _currentScreen = Screen.FromPoint(_originalPosition);
+            EndDragging();
         }
 
         private void ToolTipForm_MouseUp(object sender, MouseEventArgs e)
         {
-            _isDragging = false;
-
-            // Save new location and update current screen
-            _originalPosition = this.Location;
-            Properties.Settings.Default.ToolTipFormLocation = _originalPosition;
-            Properties.Settings.Default.Save();
-            _currentScreen = Screen.FromPoint(_originalPosition);
+            EndDragging();
         }
 
         private void ToolTipForm_MouseDown(object sender, MouseEventArgs e)
         {
+            StartDragging(e);
+        }
+
+        private void ToolTipForm_MouseMove(object sender, MouseEventArgs e)
+        {
+            Drag(e);
+        }
+
+        private void StartDragging(MouseEventArgs e)
+        {
+            // Full screen windows cannot be dragged, otherwise the break would be
+            // moved out of its monitor and the small timer position would be lost
+            if (_isFullScreen)
+            {
+                return;
+            }
+
             if (e.Button == MouseButtons.Left)
             {
                 _isDragging = true;
@@ -358,7 +374,7 @@ namespace DEMAgentProcess
             }
         }
 
-        private void ToolTipForm_MouseMove(object sender, MouseEventArgs e)
+        private void Drag(MouseEventArgs e)
         {
             if (_isDragging)
             {
@@ -366,6 +382,21 @@ namespace DEMAgentProcess
                     this.Location.X + e.X - _lastMousePosition.X,
                     this.Location.Y + e.Y - _lastMousePosition.Y);
             }
+        }
+
+        private void EndDragging()
+        {
+            if (!_isDragging)
+            {
+                return;
+            }
+
+            _isDragging = false;
+
+            // Save new location, the screen is recalculated from it when required
+            _originalPosition = this.Location;
+            Properties.Settings.Default.ToolTipFormLocation = _originalPosition;
+            Properties.Settings.Default.Save();
         }
 
         #endregion
@@ -391,6 +422,12 @@ namespace DEMAgentProcess
 
         private void ToolTipForm_FormClosing(object sender, FormClosingEventArgs e)
         {
+            // Never save a full screen position, it is not the small timer position
+            if (_isFullScreen)
+            {
+                return;
+            }
+
             // If this.Location is not 0,0
             if (this.Location.X > 0 && this.Location.Y > 0)
             {
