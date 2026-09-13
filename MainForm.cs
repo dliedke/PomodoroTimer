@@ -519,6 +519,10 @@ namespace DEMAgentProcess
                     _notifyIcon.Text = "";
                 }
 
+                // Persist immediately so the shown/hidden state survives a process kill,
+                // the same way the KeepMachineAwake toggle does.
+                SaveSettings();
+
                 ApplyTimerVisibility();
             }
         }
@@ -1033,6 +1037,7 @@ namespace DEMAgentProcess
             _breakDuration = int.Parse(Properties.Settings.Default.BreakDuration);
             _fullScreenBreak = Properties.Settings.Default.BreakFullScreen;
             _keepMachineAwake = Properties.Settings.Default.KeepMachineAwake;
+            _hideToolTipTimer = Properties.Settings.Default.HideToolTipTimer;
         }
 
         private void SaveSettings()
@@ -1041,6 +1046,7 @@ namespace DEMAgentProcess
             Properties.Settings.Default.BreakDuration = _breakDuration.ToString();
             Properties.Settings.Default.BreakFullScreen = _fullScreenBreak;
             Properties.Settings.Default.KeepMachineAwake = _keepMachineAwake;
+            Properties.Settings.Default.HideToolTipTimer = _hideToolTipTimer;
             Properties.Settings.Default.Save();
         }
 

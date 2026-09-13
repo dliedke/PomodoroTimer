@@ -82,5 +82,17 @@ namespace DEMAgentProcess.Properties {
                 this["KeepMachineAwake"] = value;
             }
         }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool HideToolTipTimer {
+            get {
+                return ((bool)(this["HideToolTipTimer"]));
+            }
+            set {
+                this["HideToolTipTimer"] = value;
+            }
+        }
     }
 }
