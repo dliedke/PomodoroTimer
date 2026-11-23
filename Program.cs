@@ -25,6 +25,18 @@ namespace DEMAgentProcess
         {
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
+
+            // user.config is stored in a folder per assembly version, so every version bump
+            // starts with default settings (timer shown, default durations, timer at 0,0).
+            // Copy the previous version values once. This must run before MainForm is
+            // created because its ToolTipForm field reads the saved location in its constructor.
+            if (Properties.Settings.Default.SettingsUpgradeRequired)
+            {
+                Properties.Settings.Default.Upgrade();
+                Properties.Settings.Default.SettingsUpgradeRequired = false;
+                Properties.Settings.Default.Save();
+            }
+
             Application.Run(new MainForm());
         }
     }
